@@ -5,7 +5,7 @@ import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
 import { SettingsIcon, UserIcon, UsersIcon } from '../components/icons';
 
-export const LoginScreen = ({ onLogin }) => {
+export const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showRoleSelection, setShowRoleSelection] = useState(false);
@@ -19,15 +19,28 @@ export const LoginScreen = ({ onLogin }) => {
   };
 
   const selectRole = (role) => {
-    onLogin(role);
     setShowRoleSelection(false);
+    
+    switch (role) {
+      case 'user':
+        navigation.navigate('UserDashboard');
+        break;
+      case 'technician':
+        navigation.navigate('TechnicianDashboard');
+        break;
+      case 'admin':
+        navigation.navigate('AdminDashboard');
+        break;
+      default:
+        break;
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.loginContainer}>
         <View style={styles.logoContainer}>
-          <SettingsIcon size={60} color={colors.primary} />
+          <SettingsIcon size={60} color="#00BFFF" />
           <Text style={styles.logoText}>ComplaintPro</Text>
           <Text style={styles.logoSubtext}>Efficient Complaint Management</Text>
         </View>

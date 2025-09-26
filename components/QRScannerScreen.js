@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const QRScannerScreen = ({ onScan, onClose }) => {
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const cameraRef = useRef(null);
 
   useEffect(() => {
     const getCameraPermissions = async () => {
@@ -13,6 +16,11 @@ const QRScannerScreen = ({ onScan, onClose }) => {
     };
     getCameraPermissions();
   }, []);
+  
+  // Function to toggle torch
+  const toggleTorch = async () => {
+    setTorchOn(prev => !prev);
+  };
 
   const handleBarCodeScanned = ({ data }) => {
     setScanned(true); // Prevent multiple scans
@@ -47,16 +55,40 @@ const QRScannerScreen = ({ onScan, onClose }) => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={styles.closeText}>×</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Scan QR Code</Text>
+        <View style={{width: 24}} />
+      </View>
+      
       <CameraView
+        ref={cameraRef}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        style={StyleSheet.absoluteFillObject}
+        style={styles.camera}
+        flashMode={torchOn ? 'torch' : 'off'}
+        enableTorch={torchOn}
       />
+      
       <View style={styles.overlay}>
-        <View style={styles.scanBox} />
-        <Text style={styles.scanText}>Point your camera at a location QR code.</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeButtonText}>Cancel</Text>
+        <View style={styles.scanBox}>
+          <View style={styles.cornerTL} />
+          <View style={styles.cornerTR} />
+          <View style={styles.cornerBL} />
+          <View style={styles.cornerBR} />
+        </View>
+        <Text style={styles.scanText}>Point your camera at the QR code to scan it.</Text>
+      </View>
+      
+      <View style={styles.bottomBar}>
+        <TouchableOpacity 
+          style={[styles.bottomButton, styles.flashlightButton, torchOn ? styles.flashlightActive : null]} 
+          onPress={toggleTorch}
+        >
+          <MaterialIcons name={torchOn ? "flash-on" : "flash-off"} size={24} color="white" />
+          <Text style={styles.bottomButtonText}>{torchOn ? "Flash Off" : "Flash On"}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -67,42 +99,122 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: 'black',
-    justifyContent: 'center',
-    alignItems: 'center'
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  closeText: {
+    color: 'white',
+    fontSize: 32,
+  },
+  camera: {
+    flex: 1,
   },
   overlay: { 
-    flex: 1, 
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center', 
     alignItems: 'center',
-    width: '100%'
   },
   scanBox: { 
     width: 250, 
     height: 250, 
-    borderWidth: 2, 
-    borderColor: '#007AFF', 
-    borderStyle: 'dashed', 
-    borderRadius: 12 
+    borderWidth: 1, 
+    borderColor: 'transparent', 
+    position: 'relative',
+  },
+  cornerTL: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 40,
+    height: 40,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: '#00BFFF',
+    borderTopLeftRadius: 10,
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#00BFFF',
+    borderTopRightRadius: 10,
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: '#00BFFF',
+    borderBottomLeftRadius: 10,
+  },
+  cornerBR: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: '#00BFFF',
+    borderBottomRightRadius: 10,
   },
   scanText: { 
     color: 'white', 
     marginTop: 24, 
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 20
   },
-  closeButton: {
-    position: 'absolute',
-    bottom: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 30
+  bottomBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: 'black',
+    marginBottom: 20,
   },
-  closeButtonText: {
+  bottomButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bottomButtonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold'
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  flashlightButton: {
+    backgroundColor: '#333',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  flashlightActive: {
+    backgroundColor: '#555',
   },
   permissionText: {
     color: 'white',
@@ -110,7 +222,7 @@ const styles = StyleSheet.create({
     marginBottom: 20
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#00BFFF',
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 8

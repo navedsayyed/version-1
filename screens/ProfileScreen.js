@@ -3,6 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, ScrollView,
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { currentUser } from '../utils/userData';
+import { colors } from '../styles/colors';
 
 const ProfileScreen = ({ navigation }) => {
   const [profile, setProfile] = useState({
@@ -68,11 +69,14 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollViewContent}
+    >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Profile</Text>
         <TouchableOpacity onPress={handleEditPress} style={styles.editButton}>
-          <MaterialIcons name={isEditing ? "close" : "edit"} size={24} color="#007bff" />
+          <MaterialIcons name={isEditing ? "close" : "edit"} size={24} color="#00BFFF" />
           <Text style={styles.editButtonText}>{isEditing ? "Cancel" : "Edit"}</Text>
         </TouchableOpacity>
       </View>
@@ -156,6 +160,9 @@ const ProfileScreen = ({ navigation }) => {
         <MaterialIcons name="logout" size={24} color="white" />
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
+      
+      {/* Add extra space at bottom to prevent tab bar overlap */}
+      <View style={styles.bottomSpacer} />
     </ScrollView>
   );
 };
@@ -163,20 +170,26 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
+  },
+  scrollViewContent: {
+    paddingBottom: 120, // Add more padding to ensure content is above tab bar
+  },
+  bottomSpacer: {
+    height: 100, // Extra space at the bottom
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 10,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   editButton: {
     flexDirection: 'row',
@@ -184,7 +197,7 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     marginLeft: 5,
-    color: '#007bff',
+    color: '#00BFFF',
     fontSize: 16,
   },
   avatarContainer: {
@@ -200,7 +213,7 @@ const styles = StyleSheet.create({
   changePhotoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007bff',
+    backgroundColor: '#00BFFF',
     paddingVertical: 8,
     paddingHorizontal: 15,
     borderRadius: 20,
@@ -211,14 +224,14 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   infoSection: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 10,
     padding: 15,
     marginHorizontal: 20,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -227,25 +240,26 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 5,
   },
   infoValue: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
+    borderColor: colors.border,
+    borderRadius: 8,
     padding: 10,
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
+    backgroundColor: colors.surface,
   },
   saveButton: {
-    backgroundColor: '#28a745',
+    backgroundColor: colors.success,
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 20,
     marginBottom: 20,
@@ -256,12 +270,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   logoutButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.error,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 12,
     marginHorizontal: 20,
     marginBottom: 30,
   },

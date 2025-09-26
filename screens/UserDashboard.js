@@ -6,6 +6,7 @@ import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
 import { mockComplaints } from '../utils/mockData';
 import QRScannerScreen from '../components/QRScannerScreen';
+import ProfileScreen from './ProfileScreen';
 import { 
   BellIcon, 
   FileTextIcon, 
@@ -15,11 +16,11 @@ import {
   CheckCircleIcon,
   ClockIcon,
   MapPinIcon,
-  CalendarIcon 
+  CalendarIcon,
+  SettingsIcon
 } from '../components/icons';
 
-export const UserDashboard = () => {
-  const [activeTab, setActiveTab] = useState('add');
+export const UserDashboard = ({ navigation }) => {
   const [complaints, setComplaints] = useState(mockComplaints);
   const [complaintForm, setComplaintForm] = useState({
     location: '',
@@ -170,7 +171,11 @@ export const UserDashboard = () => {
   };
 
   const renderAddComplaint = () => (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.tabContent} 
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scrollViewContent}
+    >
       <Card>
         <Text style={styles.sectionTitle}>Scan QR Code</Text>
         <Text style={styles.sectionSubtitle}>Select a location QR code to auto-fill details</Text>
@@ -254,8 +259,12 @@ export const UserDashboard = () => {
           onPress={submitComplaint}
           size="large"
           icon={FileTextIcon}
+          style={styles.submitButton}
         />
       </Card>
+      
+      {/* Add extra space at bottom to prevent tab bar overlap */}
+      <View style={styles.bottomSpacer} />
 
       {/* Success Modal */}
       <Modal visible={showSuccess} transparent animationType="fade">
@@ -383,8 +392,6 @@ export const UserDashboard = () => {
     );
   };
 
-  const renderMyComplaints = () => <MyComplaintsTab />;
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -392,26 +399,16 @@ export const UserDashboard = () => {
         <BellIcon size={24} color={colors.text} />
       </View>
 
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'add' && styles.activeTab]}
-          onPress={() => setActiveTab('add')}
-          activeOpacity={0.8}
+      <View style={styles.mainContent}>
+        <Text style={styles.welcomeText}>Add Complaint</Text>
+        <ScrollView 
+          style={styles.tabContent} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollViewContent}
         >
-          <FileTextIcon size={20} color={activeTab === 'add' ? colors.text : colors.textSecondary} />
-          <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>Add Complaint</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'my' && styles.activeTab]}
-          onPress={() => setActiveTab('my')}
-          activeOpacity={0.8}
-        >
-          <UserIcon size={20} color={activeTab === 'my' ? colors.text : colors.textSecondary} />
-          <Text style={[styles.tabText, activeTab === 'my' && styles.activeTabText]}>My Complaints</Text>
-        </TouchableOpacity>
+          {renderAddComplaint()}
+        </ScrollView>
       </View>
-
-      {activeTab === 'add' ? renderAddComplaint() : renderMyComplaints()}
     </View>
   );
 };
@@ -502,9 +499,30 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: colors.text,
   },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
   tabContent: {
     flex: 1,
-    padding: 24,
+  },
+  scrollViewContent: {
+    paddingBottom: 120, // Add plenty of padding to ensure content is above tab bar
+  },
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+    marginLeft: 4,
+  },
+  bottomSpacer: {
+    height: 100, // Extra space at the bottom to ensure the form is fully visible
+  },
+  submitButton: {
+    marginTop: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
