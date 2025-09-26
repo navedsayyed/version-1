@@ -6,37 +6,42 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { colors } from './styles/colors';
 import { LoginScreen } from './screens/LoginScreen';
 import { UserDashboard } from './screens/UserDashboard';
-import { TechnicianDashboard } from './screens/TechnicianDashboard';
+import TechnicianDashboard from './screens/TechnicianDashboard';
 import { AdminDashboard } from './screens/AdminDashboard';
 import ProfileScreen from './screens/ProfileScreen';
 import TasksScreen from './screens/TasksScreen';
-import { FileTextIcon, UserIcon, SettingsIcon } from './components/icons';
+import TechnicianProfileScreen from './screens/TechnicianProfileScreen';
+import CompletedWorkScreen from './screens/CompletedWorkScreen';
+import { FileTextIcon, UserIcon, SettingsIcon, CheckCircleIcon } from './components/icons';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Common tab navigator screen options
+const tabNavigatorScreenOptions = {
+  headerShown: false,
+  tabBarActiveTintColor: '#00BFFF', // Bright cyan color like in the screenshot
+  tabBarInactiveTintColor: '#888888',
+  tabBarStyle: {
+    backgroundColor: '#1A1A1A', // Dark background like in screenshot
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    elevation: 10,
+    height: 60,
+    paddingBottom: 10,
+    paddingTop: 5,
+    // Remove position absolute to fix overlap issues
+  },
+  tabBarLabelStyle: {
+    fontSize: 12,
+  },
+};
 
 // Bottom tab navigator for user screens
 const UserTabNavigator = () => {
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#00BFFF', // Bright cyan color like in the screenshot
-        tabBarInactiveTintColor: '#888888',
-        tabBarStyle: {
-          backgroundColor: '#1A1A1A', // Dark background like in screenshot
-          borderTopWidth: 1,
-          borderTopColor: '#333',
-          elevation: 10,
-          height: 60,
-          paddingBottom: 10,
-          paddingTop: 5,
-          // Remove position absolute to fix overlap issues
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-        },
-      }}
+      screenOptions={tabNavigatorScreenOptions}
     >
       <Tab.Screen 
         name="Dashboard" 
@@ -72,6 +77,46 @@ const UserTabNavigator = () => {
   );
 };
 
+// Bottom tab navigator for technician screens
+const TechnicianTabNavigator = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={tabNavigatorScreenOptions}
+    >
+      <Tab.Screen 
+        name="AssignedWork" 
+        component={TechnicianDashboard} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <FileTextIcon size={size} color={color} />
+          ),
+          tabBarLabel: 'Assigned'
+        }}
+      />
+      <Tab.Screen 
+        name="CompletedWork" 
+        component={CompletedWorkScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <CheckCircleIcon size={size} color={color} />
+          ),
+          tabBarLabel: 'Completed'
+        }}
+      />
+      <Tab.Screen 
+        name="TechProfile" 
+        component={TechnicianProfileScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <UserIcon size={size} color={color} />
+          ),
+          tabBarLabel: 'Profile'
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
 export default function App() {
   return (
     <NavigationContainer>
@@ -91,7 +136,7 @@ export default function App() {
         >
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="UserDashboard" component={UserTabNavigator} />
-          <Stack.Screen name="TechnicianDashboard" component={TechnicianDashboard} />
+          <Stack.Screen name="TechnicianDashboard" component={TechnicianTabNavigator} />
           <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
         </Stack.Navigator>
       </View>

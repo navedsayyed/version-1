@@ -1,56 +1,40 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { colors } from '../styles/colors';
-import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
 import { mockComplaints } from '../utils/mockData';
 import { 
-  BellIcon, 
+  CheckCircleIcon,
   MapPinIcon,
-  CalendarIcon,
-  CheckCircleIcon
+  CalendarIcon 
 } from '../components/icons';
 
-const TechnicianDashboard = () => {
-  const [complaints, setComplaints] = useState(
-    mockComplaints.filter(c => c.status === 'in-progress')
+const CompletedWorkScreen = () => {
+  const [completedComplaints, setCompletedComplaints] = useState(
+    mockComplaints.filter(c => c.status === 'completed')
   );
-
-  const solveComplaint = (complaintId) => {
-    Alert.alert(
-      'Solve Complaint',
-      'Mark this complaint as solved?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Mark as Solved', 
-          onPress: () => {
-            // In a real app, we would update the status in a database
-            // For this demo, we'll just remove it from the current list
-            setComplaints(prev => prev.filter(c => c.id !== complaintId));
-            Alert.alert('Success', 'Complaint marked as solved!');
-          }
-        }
-      ]
-    );
-  };
-
+  
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Assigned Work</Text>
-        <BellIcon size={24} color={colors.text} />
+        <Text style={styles.headerTitle}>Completed Work</Text>
       </View>
-
+      
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {complaints.map(complaint => (
+        {completedComplaints.map(complaint => (
           <Card key={complaint.id}>
             <View style={styles.complaintCard}>
-              <Text style={styles.complaintTitle}>{complaint.title}</Text>
+              <View style={styles.complaintHeader}>
+                <Text style={styles.complaintTitle}>{complaint.title}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: colors.success }]}>
+                  <Text style={styles.statusText}>Completed</Text>
+                </View>
+              </View>
+              
               <View style={styles.complaintDetails}>
                 <View style={styles.detailRow}>
                   <MapPinIcon size={16} color={colors.textSecondary} />
@@ -58,41 +42,44 @@ const TechnicianDashboard = () => {
                 </View>
                 <View style={styles.detailRow}>
                   <CalendarIcon size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>Submitted: {complaint.date}</Text>
+                  <Text style={styles.detailText}>Completed: {complaint.date}</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Reported by:</Text>
                   <Text style={styles.detailText}>{complaint.userId}</Text>
                 </View>
               </View>
-              
+
               <Text style={styles.complaintDescription}>{complaint.description}</Text>
-              
-              {complaint.image && (
-                <View style={styles.imageContainer}>
-                  <Text style={styles.imageLabel}>Issue Photo:</Text>
-                  <Image source={{ uri: complaint.image }} style={styles.complaintImage} />
+
+              <View style={styles.beforeAfterContainer}>
+                <View style={styles.imageSection}>
+                  <Text style={styles.imageLabel}>Before</Text>
+                  <Image source={{ uri: complaint.image }} style={styles.beforeAfterImage} />
+                </View>
+                {complaint.completedImage && (
+                  <View style={styles.imageSection}>
+                    <Text style={styles.imageLabel}>After</Text>
+                    <Image source={{ uri: complaint.completedImage }} style={styles.beforeAfterImage} />
+                  </View>
+                )}
+              </View>
+
+              {complaint.completedDescription && (
+                <View style={styles.completedSection}>
+                  <Text style={styles.completedLabel}>Work Completed:</Text>
+                  <Text style={styles.completedDescription}>{complaint.completedDescription}</Text>
                 </View>
               )}
-
-              <View style={styles.actionContainer}>
-                <CustomButton
-                  title="Mark as Solved"
-                  onPress={() => solveComplaint(complaint.id)}
-                  icon={CheckCircleIcon}
-                  variant="success"
-                  size="large"
-                />
-              </View>
             </View>
           </Card>
         ))}
-        
-        {complaints.length === 0 && (
+
+        {completedComplaints.length === 0 && (
           <View style={styles.emptyState}>
             <CheckCircleIcon size={60} color={colors.textSecondary} />
-            <Text style={styles.emptyStateText}>No pending assignments</Text>
-            <Text style={styles.emptyStateSubtext}>All assigned work has been completed!</Text>
+            <Text style={styles.emptyStateText}>No completed work</Text>
+            <Text style={styles.emptyStateSubtext}>Completed work will appear here</Text>
           </View>
         )}
       </ScrollView>
@@ -106,9 +93,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 24,
     paddingTop: 60,
     backgroundColor: colors.surface,
@@ -129,10 +113,26 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 8,
   },
+  complaintHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   complaintTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   complaintDetails: {
     gap: 8,
@@ -155,21 +155,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  imageContainer: {
-    gap: 8,
+  beforeAfterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  imageSection: {
+    flex: 1,
   },
   imageLabel: {
     color: colors.textSecondary,
+    marginBottom: 6,
     fontSize: 14,
   },
-  complaintImage: {
+  beforeAfterImage: {
     width: '100%',
-    height: 200,
+    height: 150,
     borderRadius: 8,
     backgroundColor: colors.card,
   },
-  actionContainer: {
+  completedSection: {
     marginTop: 8,
+  },
+  completedLabel: {
+    color: colors.textSecondary,
+    marginBottom: 6,
+    fontSize: 14,
+  },
+  completedDescription: {
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 24,
   },
   emptyState: {
     alignItems: 'center',
@@ -189,4 +205,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TechnicianDashboard;
+export default CompletedWorkScreen;
