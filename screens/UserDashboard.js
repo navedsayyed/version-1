@@ -4,6 +4,7 @@ import { colors } from '../styles/colors';
 import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
 import { mockComplaints } from '../utils/mockData';
+import QRScannerScreen from '../components/QRScannerScreen';
 import { 
   BellIcon, 
   FileTextIcon, 
@@ -23,19 +24,50 @@ export const UserDashboard = () => {
     location: '',
     place: '',
     description: '',
-    image: null
+    image: null,
+    class: '',
+    floor: '',
+    department: ''
   });
   const [showSuccess, setShowSuccess] = useState(false);
-  const [complaintsTab, setComplaintsTab] = useState('in-progress');
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   const handleQRScan = () => {
-    // Mock QR scan result
+    setShowQRScanner(true);
+  };
+
+  const handleScanComplete = (qrData) => {
+    // QR scan completed with data
     setComplaintForm(prev => ({
       ...prev,
-      location: 'Building A - Floor 2',
-      place: 'Room 205'
+      class: qrData.class || '',
+      floor: qrData.floor || '',
+      department: qrData.department || '',
+      location: `Building ${qrData.building || 'A'} - Floor ${qrData.floor || '1'}`,
+      place: `${qrData.department || 'General'} - Room ${qrData.class || '101'}`
     }));
-    Alert.alert('QR Code Scanned', 'Location information has been auto-filled');
+    
+    Alert.alert(
+      'QR Code Scanned Successfully!', 
+      `Location: Building ${qrData.building || 'A'} - Floor ${qrData.floor || '1'}\nDepartment: ${qrData.department || 'General'}\nRoom: ${qrData.class || '101'}`,
+      [{ text: 'OK', style: 'default' }]
+    );
+    
+    // Update complaint form with QR code data
+    setComplaintForm(prev => ({
+      ...prev,
+      class: qrData.class || '',
+      floor: qrData.floor || '',
+      department: qrData.department || '',
+      location: `Building ${qrData.building || 'A'} - Floor ${qrData.floor || '1'}`,
+      place: `${qrData.department || 'General'} - Room ${qrData.class || '101'}`
+    }));
+    
+    Alert.alert(
+      'QR Code Scanned Successfully!', 
+      `Location: Building ${qrData.building || 'A'} - Floor ${qrData.floor || '1'}\nDepartment: ${qrData.department || 'General'}\nRoom: ${qrData.class || '101'}`,
+      [{ text: 'OK', style: 'default' }]
+    );
   };
 
   const handleImagePick = () => {
@@ -50,7 +82,7 @@ export const UserDashboard = () => {
     if (complaintForm.description && complaintForm.location && complaintForm.place) {
       const newComplaint = {
         id: complaints.length + 1,
-        title: complaintForm.description.substring(0, 30) + '...',
+        title: complaintForm.description.substring(0, 30) + (complaintForm.description.length > 30 ? '...' : ''),
         description: complaintForm.description,
         location: complaintForm.location,
         place: complaintForm.place,
@@ -60,15 +92,26 @@ export const UserDashboard = () => {
         technicianId: null,
         image: complaintForm.image,
         completedImage: null,
-        completedDescription: null
+        completedDescription: null,
+        class: complaintForm.class,
+        floor: complaintForm.floor,
+        department: complaintForm.department
       };
       
       setComplaints(prev => [...prev, newComplaint]);
       setShowSuccess(true);
-      setComplaintForm({ location: '', place: '', description: '', image: null });
+      setComplaintForm({ 
+        location: '', 
+        place: '', 
+        description: '', 
+        image: null,
+        class: '',
+        floor: '',
+        department: ''
+      });
       setTimeout(() => setShowSuccess(false), 2000);
     } else {
-      Alert.alert('Error', 'Please fill all required fields');
+      Alert.alert('Error', 'Please fill all required fields (Location, Place, and Description)');
     }
   };
 
@@ -76,13 +119,29 @@ export const UserDashboard = () => {
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       <Card>
         <Text style={styles.sectionTitle}>Scan QR Code</Text>
-        <Text style={styles.sectionSubtitle}>Scan the QR code to auto-fill location details</Text>
+        <Text style={styles.sectionSubtitle}>Select a location QR code to auto-fill details</Text>
         <CustomButton
           title="Scan QR Code"
           onPress={handleQRScan}
           icon={CameraIcon}
           variant="outline"
         />
+        
+        {/* Display scanned information */}
+        {(complaintForm.class || complaintForm.floor || complaintForm.department) && (
+          <View style={styles.scannedInfo}>
+            <Text style={styles.scannedInfoTitle}>Scanned Information:</Text>
+            {complaintForm.department && (
+              <Text style={styles.scannedInfoText}>Department: {complaintForm.department}</Text>
+            )}
+            {complaintForm.floor && (
+              <Text style={styles.scannedInfoText}>Floor: {complaintForm.floor}</Text>
+            )}
+            {complaintForm.class && (
+              <Text style={styles.scannedInfoText}>Room/Class: {complaintForm.class}</Text>
+            )}
+          </View>
+        )}
       </Card>
 
       <Card>
@@ -144,6 +203,7 @@ export const UserDashboard = () => {
         />
       </Card>
 
+      {/* Success Modal */}
       <Modal visible={showSuccess} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.successModal}>
@@ -153,10 +213,20 @@ export const UserDashboard = () => {
           </View>
         </View>
       </Modal>
+
+      {/* QR Scanner Modal */}
+      <Modal visible={showQRScanner} animationType="slide" style={styles.fullScreenModal}>
+        <QRScannerScreen 
+          onScan={handleScanComplete}
+          onClose={() => setShowQRScanner(false)}
+        />
+      </Modal>
     </ScrollView>
   );
 
-  const renderMyComplaints = () => {
+  const MyComplaintsTab = () => {
+    const [complaintsTab, setComplaintsTab] = useState('in-progress');
+    
     const filteredComplaints = complaints.filter(c => 
       complaintsTab === 'in-progress' ? c.status === 'in-progress' : c.status === 'completed'
     );
@@ -229,6 +299,8 @@ export const UserDashboard = () => {
       </View>
     );
   };
+
+  const renderMyComplaints = () => <MyComplaintsTab />;
 
   return (
     <View style={styles.container}>
@@ -459,5 +531,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  scannedInfo: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  scannedInfoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: 8,
+  },
+  scannedInfoText: {
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  qrOptionsModal: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 24,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  qrOptionsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  qrOptionsSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  qrOptionsList: {
+    maxHeight: 400,
+  },
+  qrOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  qrOptionContent: {
+    flex: 1,
+  },
+  qrOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  qrOptionData: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontFamily: 'monospace',
   },
 });
