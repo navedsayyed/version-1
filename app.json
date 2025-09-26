@@ -17,7 +17,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for location information."
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes and take photos for complaints.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images for complaints."
       }
     },
     "android": {
@@ -26,7 +27,9 @@
         "backgroundColor": "#121212"
       },
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -36,7 +39,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes."
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes and take photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos for uploading complaint images."
         }
       ]
     ]

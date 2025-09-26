@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, Alert, Modal, Image, TouchableOpacity } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../styles/colors';
 import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
@@ -31,6 +32,19 @@ export const UserDashboard = () => {
   });
   const [showSuccess, setShowSuccess] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
+  
+  useEffect(() => {
+    (async () => {
+      // Request media library and camera permissions when component mounts
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (cameraPermission.status !== 'granted' || mediaLibraryPermission.status !== 'granted') {
+        Alert.alert('Permission required', 'Camera and media library permissions are needed for photo uploads');
+      }
+    })();
+  }, []);
 
   const handleQRScan = () => {
     setShowQRScanner(true);
@@ -71,11 +85,51 @@ export const UserDashboard = () => {
   };
 
   const handleImagePick = () => {
-    setComplaintForm(prev => ({
-      ...prev,
-      image: 'https://via.placeholder.com/300x200/1E1E1E/00BCD4?text=Uploaded+Image'
-    }));
-    Alert.alert('Success', 'Image uploaded successfully');
+    setShowPhotoOptions(true);
+  };
+  
+  const takePhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setComplaintForm(prev => ({
+          ...prev,
+          image: result.assets[0].uri
+        }));
+        setShowPhotoOptions(false);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to take photo');
+      console.log(error);
+    }
+  };
+  
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setComplaintForm(prev => ({
+          ...prev,
+          image: result.assets[0].uri
+        }));
+        setShowPhotoOptions(false);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image');
+      console.log(error);
+    }
   };
 
   const submitComplaint = () => {
@@ -221,6 +275,35 @@ export const UserDashboard = () => {
           onClose={() => setShowQRScanner(false)}
         />
       </Modal>
+      
+      {/* Photo Options Modal */}
+      <Modal visible={showPhotoOptions} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.photoOptionsModal}>
+            <Text style={styles.photoOptionsTitle}>Add Photo</Text>
+            <Text style={styles.photoOptionsSubtitle}>Choose how you want to add a photo</Text>
+            
+            <View style={styles.photoOptionButtons}>
+              <TouchableOpacity style={styles.photoOption} onPress={takePhoto}>
+                <CameraIcon size={32} color={colors.primary} />
+                <Text style={styles.photoOptionText}>Take Photo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.photoOption} onPress={pickImage}>
+                <UploadIcon size={32} color={colors.secondary} />
+                <Text style={styles.photoOptionText}>Upload from Gallery</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <CustomButton
+              title="Cancel"
+              onPress={() => setShowPhotoOptions(false)}
+              variant="outline"
+              style={styles.photoOptionsCancel}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 
@@ -337,6 +420,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  photoOptionsModal: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+  },
+  photoOptionsTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  photoOptionsSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  photoOptionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+  },
+  photoOption: {
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    width: '45%',
+  },
+  photoOptionText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  photoOptionsCancel: {
+    marginTop: 8,
   },
   header: {
     flexDirection: 'row',
