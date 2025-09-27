@@ -24,36 +24,14 @@ export const AdminDashboard = ({ navigation }) => {
   
   // Group complaints by department
   const departmentGroups = complaints.reduce((acc, complaint) => {
-    // Get department from the complaint
     const department = complaint.department || 'General';
-    
-    if (!acc[department]) {
-      acc[department] = [];
-    }
+    if (!acc[department]) acc[department] = [];
     acc[department].push(complaint);
     return acc;
   }, {});
 
   // Filter complaints based on the active tab
   const displayedComplaints = complaints.filter(c => c.status === activeTab);
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusColor = (status) => {
-    return status === 'completed' ? colors.success : colors.accent;
-  };
-
-  const getStatusText = (status) => {
-    return status === 'completed' ? 'Completed' : 'Pending';
-  };
 
   return (
     <View style={styles.container}>
@@ -63,22 +41,39 @@ export const AdminDashboard = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Statistics Cards */}
-        <View style={styles.statsContainer}>
-          <Card style={styles.statCard}>
-            <FileTextIcon size={32} color={colors.primary} />
-            <Text style={styles.statNumber}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total Complaints</Text>
+        {/* Ultra Compact Stats */}
+        <View style={styles.statsRow}>
+          <Card style={styles.miniStat}>
+            <View style={styles.iconCircle}>
+              <FileTextIcon size={16} color="#00BFFF" />
+            </View>
+            <Text style={styles.miniNumber}>{stats.total}</Text>
+            <Text style={styles.miniLabel}>Total</Text>
+            <View style={[styles.miniBadge, { backgroundColor: '#00BFFF'}]}>
+              <Text style={styles.miniBadgeText}>All</Text>
+            </View>
           </Card>
-          <Card style={styles.statCard}>
-            <ClockIcon size={32} color={colors.accent} />
-            <Text style={styles.statNumber}>{stats.pending}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+
+          <Card style={styles.miniStat}>
+            <View style={styles.iconCircle}>
+              <ClockIcon size={16} color="#00BFFF" />
+            </View>
+            <Text style={styles.miniNumber}>{stats.pending}</Text>
+            <Text style={styles.miniLabel}>In Progress</Text>
+            <View style={[styles.miniBadge, { backgroundColor: '#00BFFF'}]}>
+              <Text style={styles.miniBadgeText}>Pending</Text>
+            </View>
           </Card>
-          <Card style={styles.statCard}>
-            <CheckCircleIcon size={32} color={colors.success} />
-            <Text style={styles.statNumber}>{stats.completed}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+
+          <Card style={styles.miniStat}>
+            <View style={styles.iconCircle}>
+              <CheckCircleIcon size={16} color="#4CAF50" />
+            </View>
+            <Text style={styles.miniNumber}>{stats.completed}</Text>
+            <Text style={styles.miniLabel}>Completed</Text>
+            <View style={[styles.miniBadge, { backgroundColor: '#4CAF50'}]}>
+              <Text style={styles.miniBadgeText}>Done</Text>
+            </View>
           </Card>
         </View>
 
@@ -157,7 +152,7 @@ export const AdminDashboard = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Complaints List (single source, cleaned) */}
+        {/* Complaints List */}
         <Card>
           <View style={styles.complaintsList}>
             {displayedComplaints.length > 0 ? (
@@ -167,15 +162,24 @@ export const AdminDashboard = ({ navigation }) => {
                   activeOpacity={0.75}
                   onPress={() => navigation.navigate('ComplaintDetail', { complaint, readOnly: true })}
                   style={[
-                  styles.adminComplaintRow,
-                  index !== displayedComplaints.length - 1 && styles.borderBottom
-                ]}
+                    styles.adminComplaintRow,
+                    index !== displayedComplaints.length - 1 && styles.borderBottom
+                  ]}
                 >
                   <View style={styles.adminComplaintInfo}>
                     <View style={styles.complaintHeader}>
-                      <Text style={styles.adminComplaintId}>#{complaint.id.toString().padStart(4, '0')}</Text>
-                      <View style={[styles.adminStatusBadge, { backgroundColor: activeTab === 'in-progress' ? colors.accent : colors.success }]}>
-                        <Text style={styles.adminStatusText}>{activeTab === 'in-progress' ? 'Pending' : 'Completed'}</Text>
+                      <Text style={styles.adminComplaintId}>
+                        #{complaint.id.toString().padStart(4, '0')}
+                      </Text>
+                      <View
+                        style={[
+                          styles.adminStatusBadge,
+                          { backgroundColor: activeTab === 'in-progress' ? colors.accent : colors.success }
+                        ]}
+                      >
+                        <Text style={styles.adminStatusText}>
+                          {activeTab === 'in-progress' ? 'Pending' : 'Completed'}
+                        </Text>
                       </View>
                     </View>
                     <Text style={styles.adminComplaintTitle}>{complaint.title}</Text>
@@ -186,7 +190,9 @@ export const AdminDashboard = ({ navigation }) => {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No {activeTab === 'in-progress' ? 'pending' : 'completed'} complaints found</Text>
+                <Text style={styles.emptyStateText}>
+                  No {activeTab === 'in-progress' ? 'pending' : 'completed'} complaints found
+                </Text>
               </View>
             )}
           </View>
@@ -218,65 +224,58 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
   },
-  statsContainer: {
+  statsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 20,
-    gap: 8,
-  },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
-  filterContainer: {
-    marginBottom: 20,
+  miniStat: {
+    position: 'relative',
+    width: '31%',
+    backgroundColor: '#252525',
+    borderRadius: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+    paddingHorizontal: 10,
+    alignItems: 'flex-start',
   },
-  filterButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    marginLeft: -6,      // <-- shift circle slightly left so text/badge don't overlap
   },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+  miniNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 22,
+    marginBottom: 2,
   },
-  activeFilterButton: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  miniLabel: {
+    fontSize: 10,
+    color: '#9E9E9E',
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
-  filterButtonText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  miniBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 10,          // a bit more space from the icon
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  miniBadgeText: {
+    color: 'white',
+    fontSize: 10,
     fontWeight: '600',
   },
-  activeFilterButtonText: {
-    color: colors.text,
-  },
-  complaintsList: {
-    gap: 0,
-  },
+  complaintsList: { },
   adminComplaintRow: {
     paddingVertical: 16,
   },
@@ -319,86 +318,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 12,
   },
-  adminComplaintDetails: {
-    gap: 6,
-  },
-  detailGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    width: 100,
-  },
-  adminDetailText: {
-    fontSize: 12,
-    color: colors.text,
-    flex: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    gap: 12,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  analyticsContainer: {
-    gap: 12,
-  },
-  analyticsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  analyticsLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  analyticsValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  sectionHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionBadge: {
-    backgroundColor: colors.accent,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  sectionBadgeText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 14,
-  },
   departmentTag: {
     fontSize: 13,
     color: colors.primary,
     fontWeight: '500',
     marginTop: 4,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
   emptyStateText: {
     fontSize: 14,
