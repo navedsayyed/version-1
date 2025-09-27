@@ -1,38 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert, Image, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { colors } from '../styles/colors';
-import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
 import { mockComplaints } from '../utils/mockData';
-import { 
-  BellIcon, 
-  MapPinIcon,
-  CalendarIcon,
-  CheckCircleIcon
-} from '../components/icons';
+import { BellIcon, MapPinIcon, CalendarIcon, CheckCircleIcon } from '../components/icons';
 
-const TechnicianDashboard = () => {
-  const [complaints, setComplaints] = useState(
-    mockComplaints.filter(c => c.status === 'in-progress')
-  );
+const TechnicianDashboard = ({ navigation }) => {
+  const [complaints] = useState(mockComplaints.filter(c => c.status === 'in-progress'));
 
-  const solveComplaint = (complaintId) => {
-    Alert.alert(
-      'Solve Complaint',
-      'Mark this complaint as solved?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Mark as Solved', 
-          onPress: () => {
-            // In a real app, we would update the status in a database
-            // For this demo, we'll just remove it from the current list
-            setComplaints(prev => prev.filter(c => c.id !== complaintId));
-            Alert.alert('Success', 'Complaint marked as solved!');
-          }
-        }
-      ]
-    );
+  const navigateToDetail = (complaint) => {
+    navigation.navigate('ComplaintDetail', { complaint });
   };
 
   return (
@@ -41,53 +18,47 @@ const TechnicianDashboard = () => {
         <Text style={styles.headerTitle}>Assigned Work</Text>
         <BellIcon size={24} color={colors.text} />
       </View>
-
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {complaints.map(complaint => (
-          <Card key={complaint.id}>
-            <View style={styles.complaintCard}>
-              <Text style={styles.complaintTitle}>{complaint.title}</Text>
-              <View style={styles.complaintDetails}>
-                <View style={styles.detailRow}>
-                  <MapPinIcon size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>{complaint.location} - {complaint.place}</Text>
+          <TouchableOpacity key={complaint.id} activeOpacity={0.85} onPress={() => navigateToDetail(complaint)}>
+            <Card>
+              <View style={styles.complaintCard}>
+                <Text style={styles.complaintTitle}>{complaint.title}</Text>
+                {complaint.type ? (
+                  <View style={styles.typeContainer}>
+                    <View style={styles.typeBadge}>
+                      <Text style={styles.typeBadgeText}>{complaint.type.charAt(0).toUpperCase() + complaint.type.slice(1)}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                <View style={styles.complaintDetails}>
+                  <View style={styles.detailRow}>
+                    <MapPinIcon size={16} color={colors.textSecondary} />
+                    <Text style={styles.detailText}>{complaint.location} - {complaint.place}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <CalendarIcon size={16} color={colors.textSecondary} />
+                    <Text style={styles.detailText}>Submitted: {complaint.date}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Reported by:</Text>
+                    <Text style={styles.detailText}>{complaint.userId}</Text>
+                  </View>
                 </View>
-                <View style={styles.detailRow}>
-                  <CalendarIcon size={16} color={colors.textSecondary} />
-                  <Text style={styles.detailText}>Submitted: {complaint.date}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Reported by:</Text>
-                  <Text style={styles.detailText}>{complaint.userId}</Text>
+                <Text style={styles.complaintDescription}>{complaint.description}</Text>
+                {complaint.image ? (
+                  <View style={styles.imageContainer}>
+                    <Text style={styles.imageLabel}>Issue Photo:</Text>
+                    <Image source={{ uri: complaint.image }} style={styles.complaintImage} />
+                  </View>
+                ) : null}
+                <View style={styles.viewDetailsContainer}>
+                  <Text style={styles.viewDetailsText}>Tap to view details and complete this work</Text>
                 </View>
               </View>
-              
-              <Text style={styles.complaintDescription}>{complaint.description}</Text>
-              
-              {complaint.image && (
-                <View style={styles.imageContainer}>
-                  <Text style={styles.imageLabel}>Issue Photo:</Text>
-                  <Image source={{ uri: complaint.image }} style={styles.complaintImage} />
-                </View>
-              )}
-
-              <View style={styles.actionContainer}>
-                <CustomButton
-                  title="Mark as Solved"
-                  onPress={() => solveComplaint(complaint.id)}
-                  icon={CheckCircleIcon}
-                  variant="success"
-                  size="large"
-                />
-              </View>
-            </View>
-          </Card>
+            </Card>
+          </TouchableOpacity>
         ))}
-        
         {complaints.length === 0 && (
           <View style={styles.emptyState}>
             <CheckCircleIcon size={60} color={colors.textSecondary} />
@@ -168,25 +139,36 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.card,
   },
-  actionContainer: {
-    marginTop: 8,
-  },
-  emptyState: {
+  viewDetailsContainer: {
+    marginTop: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  emptyStateText: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  emptyStateSubtext: {
-    color: colors.textSecondary,
+  viewDetailsText: {
+    color: colors.primary,
     fontSize: 14,
-    marginTop: 8,
+    fontWeight: '600',
   },
+  typeContainer: {
+    marginBottom: 12,
+  },
+  typeBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  typeBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyStateText: { color: colors.text, fontSize: 18, fontWeight: 'bold', marginTop: 16 },
+  emptyStateSubtext: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
 });
 
 export default TechnicianDashboard;

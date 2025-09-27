@@ -12,6 +12,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import TasksScreen from './screens/TasksScreen';
 import TechnicianProfileScreen from './screens/TechnicianProfileScreen';
 import CompletedWorkScreen from './screens/CompletedWorkScreen';
+import ComplaintDetailScreen from './screens/ComplaintDetailScreen';
 import { FileTextIcon, UserIcon, SettingsIcon, CheckCircleIcon } from './components/icons';
 
 const Stack = createStackNavigator();
@@ -138,6 +139,7 @@ export default function App() {
           <Stack.Screen name="UserDashboard" component={UserTabNavigator} />
           <Stack.Screen name="TechnicianDashboard" component={TechnicianTabNavigator} />
           <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+          <Stack.Screen name="ComplaintDetail" component={ComplaintDetailScreen} />
         </Stack.Navigator>
       </View>
     </NavigationContainer>
