@@ -12,7 +12,7 @@ import {
 } from '../components/icons';
 
 const ComplaintDetailScreen = ({ route, navigation }) => {
-  const { complaint } = route.params;
+  const { complaint, readOnly } = route.params;
   const [proofImage, setProofImage] = useState(null);
 
   const pickImage = async () => {
@@ -88,6 +88,8 @@ const ComplaintDetailScreen = ({ route, navigation }) => {
     );
   };
 
+  const statusColor = complaint.status === 'completed' ? colors.success : colors.accent;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -106,88 +108,105 @@ const ComplaintDetailScreen = ({ route, navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{complaint.title}</Text>
-          
+          <View style={styles.titleRow}>
+            <Text style={styles.sectionTitle}>{complaint.title}</Text>
+            <View style={[styles.statusChip, { backgroundColor: statusColor }]}>
+              <Text style={styles.statusChipText}>{complaint.status === 'completed' ? 'Completed' : 'In Progress'}</Text>
+            </View>
+          </View>
           {complaint.type && (
             <View style={styles.typeBadgeContainer}>
               <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>
-                  {complaint.type.charAt(0).toUpperCase() + complaint.type.slice(1)}
-                </Text>
+                <Text style={styles.typeBadgeText}>{complaint.type.toUpperCase()}</Text>
               </View>
-              <Text style={styles.typeExplanation}>
-                This complaint requires {complaint.type} expertise
-              </Text>
+              <Text style={styles.typeExplanation}>Requires {complaint.type} expertise</Text>
             </View>
           )}
-          
           <View style={styles.detailRow}>
             <MapPinIcon size={16} color={colors.textSecondary} />
-            <Text style={styles.detailText}>{complaint.location} - {complaint.place}</Text>
+            <Text style={styles.detailText}>{complaint.location}{complaint.place ? ` - ${complaint.place}` : ''}</Text>
           </View>
           <View style={styles.detailRow}>
             <CalendarIcon size={16} color={colors.textSecondary} />
             <Text style={styles.detailText}>Submitted: {complaint.date}</Text>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Reported by:</Text>
-            <Text style={styles.detailText}>{complaint.userId}</Text>
-          </View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>Department:</Text><Text style={styles.detailText}>{complaint.department || 'General'}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>Reported by:</Text><Text style={styles.detailText}>{complaint.userId}</Text></View>
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>Technician:</Text><Text style={styles.detailText}>{complaint.technicianId || 'Unassigned'}</Text></View>
+          {complaint.submittedAt && (
+            <View style={styles.detailRow}><Text style={styles.detailLabel}>Submitted:</Text><Text style={styles.detailText}>{new Date(complaint.submittedAt).toLocaleString()}</Text></View>
+          )}
+          {complaint.assignedAt && (
+            <View style={styles.detailRow}><Text style={styles.detailLabel}>Assigned:</Text><Text style={styles.detailText}>{new Date(complaint.assignedAt).toLocaleString()}</Text></View>
+          )}
+          {complaint.completedAt && (
+            <View style={styles.detailRow}><Text style={styles.detailLabel}>Completed:</Text><Text style={styles.detailText}>{new Date(complaint.completedAt).toLocaleString()}</Text></View>
+          )}
         </View>
         
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Description</Text>
           <Text style={styles.description}>{complaint.description}</Text>
         </View>
-        
+
         {complaint.image && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>User Submitted Photo</Text>
             <Image source={{ uri: complaint.image }} style={styles.complaintImage} />
           </View>
         )}
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Completion Proof</Text>
-          {proofImage ? (
-            <View>
+          {complaint.completedImage && (
+            <View style={{ marginBottom: 12 }}>
+              <Text style={styles.subSectionLabel}>Technician Submission</Text>
+              <Image source={{ uri: complaint.completedImage }} style={styles.complaintImage} />
+              {complaint.completedDescription && (
+                <Text style={styles.techNote}>{complaint.completedDescription}</Text>
+              )}
+            </View>
+          )}
+          {!readOnly && proofImage && (
+            <View style={{ marginBottom: 12 }}>
+              <Text style={styles.subSectionLabel}>Your Upload</Text>
               <Image source={{ uri: proofImage }} style={styles.complaintImage} />
               <View style={styles.imageCaptionRow}>
                 <Text style={styles.imageCaption}>Completion photo uploaded</Text>
-                <TouchableOpacity onPress={pickImage}>
-                  <Text style={styles.changePhotoText}>Change Photo</Text>
-                </TouchableOpacity>
+                <TouchableOpacity onPress={pickImage}><Text style={styles.changePhotoText}>Change Photo</Text></TouchableOpacity>
               </View>
             </View>
-          ) : (
+          )}
+          {!readOnly && !proofImage && (
             <View style={styles.uploadSection}>
-              <Text style={styles.uploadText}>Please upload a photo as proof of work completion</Text>
+              <Text style={styles.uploadText}>Upload a completion photo</Text>
               <View style={styles.uploadButtons}>
                 <TouchableOpacity style={styles.uploadButton} onPress={takePhoto}>
-                  <View style={styles.iconContainer}>
-                    <Ionicons name="camera" size={28} color={colors.primary} />
-                  </View>
+                  <View style={styles.iconContainer}><Ionicons name="camera" size={28} color={colors.primary} /></View>
                   <Text style={styles.uploadButtonText}>Take Photo</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-                  <View style={styles.iconContainer}>
-                    <Feather name="image" size={28} color={colors.primary} />
-                  </View>
+                  <View style={styles.iconContainer}><Feather name="image" size={28} color={colors.primary} /></View>
                   <Text style={styles.uploadButtonText}>Gallery</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
+          {readOnly && !complaint.completedImage && (
+            <Text style={styles.noProofText}>No completion proof uploaded yet.</Text>
+          )}
         </View>
-        
-        <CustomButton
-          title="Mark as Completed"
-          onPress={handleSubmit}
-          icon={CheckCircleIcon}
-          variant="success"
-          size="large"
-          disabled={!proofImage}
-        />
+
+        {!readOnly && (
+          <CustomButton
+            title="Mark as Completed"
+            onPress={handleSubmit}
+            icon={CheckCircleIcon}
+            variant="success"
+            size="large"
+            disabled={!proofImage}
+          />
+        )}
       </ScrollView>
     </View>
   );
@@ -237,6 +256,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 12,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  statusChipText: {
+    color: colors.text,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  subSectionLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    fontWeight: '600'
+  },
+  techNote: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   typeBadgeContainer: {
     marginBottom: 16,
@@ -338,6 +383,11 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  noProofText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontStyle: 'italic'
   },
 });
 

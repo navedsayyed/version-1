@@ -5,7 +5,7 @@ import { Card } from '../components/Card';
 import { mockComplaints } from '../utils/mockData';
 import { ClockIcon, CheckCircleIcon, FileTextIcon } from '../components/icons';
 
-const AdminProfileScreen = () => {
+const AdminProfileScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('in-progress');
   const complaints = mockComplaints;
 
@@ -42,7 +42,12 @@ const AdminProfileScreen = () => {
         </View>
 
         {filtered.map(c => (
-          <Card key={c.id} style={styles.taskCard}>
+          <TouchableOpacity
+            key={c.id}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ComplaintDetail', { complaint: c, readOnly: true })}
+          >
+          <Card style={styles.taskCard}>
             <View style={styles.taskHeaderRow}>
               <Text style={styles.taskTitle}>{c.title}</Text>
               <View style={[styles.statusBadge, { backgroundColor: c.status === 'completed' ? colors.success : colors.accent }]}>
@@ -57,6 +62,7 @@ const AdminProfileScreen = () => {
             </View>
             <Text style={styles.description}>{c.description}</Text>
           </Card>
+          </TouchableOpacity>
         ))}
 
         {filtered.length === 0 && (

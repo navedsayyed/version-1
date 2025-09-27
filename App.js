@@ -11,6 +11,7 @@ import { AdminDashboard } from './screens/AdminDashboard';
 import AdminDepartmentsScreen from './screens/AdminDepartmentsScreen';
 import ProfileScreen from './screens/ProfileScreen'; // user profile
 import AdminProfileScreen from './screens/AdminProfileScreen';
+import AdminProfileDetailScreen from './screens/AdminProfileDetailScreen';
 import TasksScreen from './screens/TasksScreen';
 import TechnicianProfileScreen from './screens/TechnicianProfileScreen';
 import CompletedWorkScreen from './screens/CompletedWorkScreen';
@@ -148,7 +149,7 @@ const AdminTabNavigator = () => {
       />
       <Tab.Screen 
         name="AdminProfile" 
-        component={AdminProfileScreen} 
+        component={AdminProfileDetailScreen} 
         options={{
           tabBarIcon: ({ color, size }) => (
             <UserIcon size={size} color={color} />

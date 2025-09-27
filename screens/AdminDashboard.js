@@ -12,7 +12,7 @@ import {
   LayersIcon
 } from '../components/icons';
 
-export const AdminDashboard = () => {
+export const AdminDashboard = ({ navigation }) => {
   const [complaints] = useState(mockComplaints);
   const [activeTab, setActiveTab] = useState('in-progress'); // 'in-progress' or 'completed'
 
@@ -162,10 +162,15 @@ export const AdminDashboard = () => {
           <View style={styles.complaintsList}>
             {displayedComplaints.length > 0 ? (
               displayedComplaints.map((complaint, index) => (
-                <View key={complaint.id} style={[
+                <TouchableOpacity
+                  key={complaint.id}
+                  activeOpacity={0.75}
+                  onPress={() => navigation.navigate('ComplaintDetail', { complaint, readOnly: true })}
+                  style={[
                   styles.adminComplaintRow,
                   index !== displayedComplaints.length - 1 && styles.borderBottom
-                ]}>
+                ]}
+                >
                   <View style={styles.adminComplaintInfo}>
                     <View style={styles.complaintHeader}>
                       <Text style={styles.adminComplaintId}>#{complaint.id.toString().padStart(4, '0')}</Text>
@@ -177,7 +182,7 @@ export const AdminDashboard = () => {
                     <Text style={styles.adminComplaintLocation}>{complaint.location}</Text>
                     <Text style={styles.departmentTag}>{complaint.department || 'General'}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             ) : (
               <View style={styles.emptyState}>
