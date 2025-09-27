@@ -39,6 +39,10 @@ export const CalendarIcon = ({ size = 24, color = '#FFFFFF' }) => (
   <Feather name="calendar" size={size} color={color} />
 );
 
+export const LayersIcon = ({ size = 24, color = '#FFFFFF' }) => (
+  <Feather name="layers" size={size} color={color} />
+);
+
 export const UploadIcon = ({ size = 24, color = '#FFFFFF' }) => (
   <Feather name="upload" size={size} color={color} />
 );

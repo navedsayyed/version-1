@@ -8,12 +8,14 @@ import { LoginScreen } from './screens/LoginScreen';
 import { UserDashboard } from './screens/UserDashboard';
 import TechnicianDashboard from './screens/TechnicianDashboard';
 import { AdminDashboard } from './screens/AdminDashboard';
-import ProfileScreen from './screens/ProfileScreen';
+import AdminDepartmentsScreen from './screens/AdminDepartmentsScreen';
+import ProfileScreen from './screens/ProfileScreen'; // user profile
+import AdminProfileScreen from './screens/AdminProfileScreen';
 import TasksScreen from './screens/TasksScreen';
 import TechnicianProfileScreen from './screens/TechnicianProfileScreen';
 import CompletedWorkScreen from './screens/CompletedWorkScreen';
 import ComplaintDetailScreen from './screens/ComplaintDetailScreen';
-import { FileTextIcon, UserIcon, SettingsIcon, CheckCircleIcon } from './components/icons';
+import { FileTextIcon, UserIcon, SettingsIcon, CheckCircleIcon, LayersIcon } from './components/icons';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -118,6 +120,46 @@ const TechnicianTabNavigator = () => {
   );
 };
 
+// Bottom tab navigator for admin screens
+const AdminTabNavigator = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={tabNavigatorScreenOptions}
+    >
+      <Tab.Screen 
+        name="Overview" 
+        component={AdminDashboard} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <FileTextIcon size={size} color={color} />
+          ),
+          tabBarLabel: 'Overview'
+        }}
+      />
+      <Tab.Screen 
+        name="Departments" 
+        component={AdminDepartmentsScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <LayersIcon size={size} color={color} />
+          ),
+          tabBarLabel: 'Departments'
+        }}
+      />
+      <Tab.Screen 
+        name="AdminProfile" 
+        component={AdminProfileScreen} 
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <UserIcon size={size} color={color} />
+          ),
+          tabBarLabel: 'Profile'
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
 export default function App() {
   return (
     <NavigationContainer>
@@ -138,7 +180,7 @@ export default function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="UserDashboard" component={UserTabNavigator} />
           <Stack.Screen name="TechnicianDashboard" component={TechnicianTabNavigator} />
-          <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+          <Stack.Screen name="AdminDashboard" component={AdminTabNavigator} />
           <Stack.Screen name="ComplaintDetail" component={ComplaintDetailScreen} />
         </Stack.Navigator>
       </View>
