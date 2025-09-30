@@ -80,7 +80,7 @@ export const CustomButton = ({
           color={getIconColor()} 
         />
       )}
-      <Text style={getTextStyle()}>{title}</Text>
+      {title ? <Text style={getTextStyle()}>{title}</Text> : null}
     </TouchableOpacity>
   );
 };

@@ -88,7 +88,7 @@ const TechnicianProfileScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Profile</Text>
         <TouchableOpacity onPress={handleEditPress} style={styles.editButton}>
-          <MaterialIcons name={isEditing ? "close" : "edit"} size={24} color={colors.primary} />
+          <View><MaterialIcons name={isEditing ? "close" : "edit"} size={24} color={colors.primary} /></View>
           <Text style={styles.editButtonText}>{isEditing ? "Cancel" : "Edit"}</Text>
         </TouchableOpacity>
       </View>
@@ -100,7 +100,7 @@ const TechnicianProfileScreen = ({ navigation }) => {
         />
         {isEditing && (
           <TouchableOpacity style={styles.changePhotoButton} onPress={pickImage}>
-            <MaterialIcons name="photo-camera" size={20} color="white" />
+            <View><MaterialIcons name="photo-camera" size={20} color="white" /></View>
             <Text style={styles.changePhotoText}>Change Photo</Text>
           </TouchableOpacity>
         )}
@@ -187,7 +187,7 @@ const TechnicianProfileScreen = ({ navigation }) => {
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <MaterialIcons name="logout" size={20} color="white" />
+          <View><MaterialIcons name="logout" size={20} color="white" /></View>
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       )}

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, Alert, TouchableOpacity, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { colors } from '../styles/colors';
 import { CustomButton } from '../components/CustomButton';
 import * as ImagePicker from 'expo-image-picker';
@@ -8,12 +8,112 @@ import {
   MapPinIcon, 
   CalendarIcon, 
   UploadIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  StarIcon
 } from '../components/icons';
 
+import {
+  getComplaintById,
+  completeComplaint,
+  assignComplaint,
+  auth,
+  uploadCompletionImage,
+  getTechnicians,
+  rateComplaint
+} from '../firebase/index';
+
 const ComplaintDetailScreen = ({ route, navigation }) => {
-  const { complaint, readOnly } = route.params;
+  const { complaintId, readOnly = false } = route.params || {};
+  const [complaint, setComplaint] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [proofImage, setProofImage] = useState(null);
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [technicians, setTechnicians] = useState([]);
+  const [selectedTechId, setSelectedTechId] = useState(null);
+  const [showTechModal, setShowTechModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState('');
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const currentUser = auth.currentUser;
+  const [userRole, setUserRole] = useState(null);
+  
+  // Get user role
+  useEffect(() => {
+    const getUserRole = async () => {
+      if (currentUser) {
+        try {
+          // Get user document from Firestore to determine role
+          const { user, error } = await getUserById(currentUser.uid);
+          if (error) {
+            console.error('Error getting user role:', error);
+            setUserRole('user'); // Default to 'user' role on error
+            return;
+          }
+          
+          if (user) {
+            setUserRole(user.role || 'user');
+          } else {
+            setUserRole('user'); // Default to 'user' if no data found
+          }
+        } catch (error) {
+          console.error('Error getting user role:', error);
+        }
+      }
+    };
+    
+    getUserRole();
+  }, [currentUser]);
+
+  // Fetch complaint details
+  useEffect(() => {
+    fetchComplaintDetails();
+  }, [complaintId]);
+
+  // Fetch technicians if user is admin
+  useEffect(() => {
+    if (userRole === 'admin') {
+      loadTechnicians();
+    }
+  }, [userRole]);
+
+  const fetchComplaintDetails = async () => {
+    try {
+      setLoading(true);
+      const result = await getComplaintById(complaintId);
+      
+      if (result.complaint) {
+        setComplaint(result.complaint);
+      } else {
+        Alert.alert('Error', result.error || 'Complaint not found');
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Error fetching complaint:', error);
+      Alert.alert('Error', 'Failed to load complaint details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTechnicians = async () => {
+    try {
+      const result = await getTechnicians();
+      
+      if (Array.isArray(result)) {
+        setTechnicians(result);
+      } else if (result.error) {
+        console.error('Error loading technicians:', result.error);
+        Alert.alert('Error', 'Failed to load technicians');
+      } else {
+        console.error('Unexpected response format:', result);
+      }
+    } catch (error) {
+      console.error('Error loading technicians:', error);
+      Alert.alert('Error', 'Failed to load technicians');
+    }
+  };
 
   const pickImage = async () => {
     // Request permission to access the camera roll
@@ -56,9 +156,14 @@ const ComplaintDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleCompleteWork = async () => {
     if (!proofImage) {
       Alert.alert('Missing Photo', 'Please upload or take a photo as proof of completion.');
+      return;
+    }
+    
+    if (!completionNotes.trim()) {
+      Alert.alert('Missing Notes', 'Please add notes about the completion.');
       return;
     }
     
@@ -69,26 +174,262 @@ const ComplaintDetailScreen = ({ route, navigation }) => {
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Confirm', 
-          onPress: () => {
-            // In a real app, we would send this data to a server
-            // For this demo, we'll just show a success message and navigate back
-            Alert.alert(
-              'Success',
-              'Work has been marked as completed successfully!',
-              [
-                { 
-                  text: 'OK',
-                  onPress: () => navigation.navigate('AssignedWork')
-                }
-              ]
-            );
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              
+              // Upload proof image first
+              const { downloadURL, error: uploadError } = await uploadCompletionImage(complaintId, proofImage);
+              
+              if (uploadError) {
+                Alert.alert('Error', 'Failed to upload completion image');
+                setSubmitting(false);
+                return;
+              }
+              
+              // Mark as complete with image and notes
+              const result = await completeComplaint(complaintId, {
+                completedBy: currentUser.uid,
+                completedDescription: completionNotes,
+                completedImage: downloadURL
+              });
+              
+              if (result.error) {
+                Alert.alert('Error', result.error || 'Failed to mark work as completed');
+                setSubmitting(false);
+                return;
+              }
+              
+              setSubmitting(false);
+              Alert.alert(
+                'Success',
+                'Work has been marked as completed successfully!',
+                [
+                  { 
+                    text: 'OK',
+                    onPress: () => navigation.goBack()
+                  }
+                ]
+              );
+            } catch (error) {
+              console.error('Error completing work:', error);
+              Alert.alert('Error', 'An unexpected error occurred');
+              setSubmitting(false);
+            }
           }
         }
       ]
     );
   };
 
-  const statusColor = complaint.status === 'completed' ? colors.success : colors.accent;
+  const handleAssignTechnician = async () => {
+    if (!selectedTechId) {
+      Alert.alert('Selection Required', 'Please select a technician to assign this complaint to.');
+      return;
+    }
+    
+    try {
+      setSubmitting(true);
+      
+      // Find the selected technician to get their details
+      const selectedTech = technicians.find(tech => tech.id === selectedTechId);
+      
+      const result = await assignComplaint(
+        complaintId, 
+        selectedTechId,
+        currentUser.uid // Admin who is assigning the technician
+      );
+      
+      if (result.error) {
+        Alert.alert('Error', result.error || 'Failed to assign technician');
+        setSubmitting(false);
+        return;
+      }
+      
+      setSubmitting(false);
+      setShowTechModal(false);
+      
+      Alert.alert(
+        'Success',
+        `Complaint assigned to ${selectedTech.name} successfully!`,
+        [{ text: 'OK', onPress: () => fetchComplaintDetails() }]
+      );
+    } catch (error) {
+      console.error('Error assigning technician:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+      setSubmitting(false);
+    }
+  };
+
+  const handleRateComplaint = async () => {
+    if (rating === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating.');
+      return;
+    }
+    
+    try {
+      setSubmitting(true);
+      
+      const result = await rateComplaint(complaintId, rating, feedback);
+      
+      if (result.error) {
+        Alert.alert('Error', result.error || 'Failed to submit rating');
+        setSubmitting(false);
+        return;
+      }
+      
+      setSubmitting(false);
+      setShowRatingModal(false);
+      
+      Alert.alert(
+        'Thank You',
+        'Your feedback has been submitted successfully!',
+        [{ text: 'OK', onPress: () => fetchComplaintDetails() }]
+      );
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading complaint details...</Text>
+      </View>
+    );
+  }
+
+  if (!complaint) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Complaint not found</Text>
+        <CustomButton 
+          title="Go Back" 
+          onPress={() => navigation.goBack()} 
+          variant="outline"
+        />
+      </View>
+    );
+  }
+
+  const statusColor = 
+    complaint.status === 'completed' ? colors.success : 
+    complaint.status === 'in-progress' ? colors.accent : 
+    colors.pending;
+
+  const canComplete = userRole === 'technician' && complaint.status === 'in-progress' && 
+                      complaint.technicianId === currentUser.uid;
+  
+  const canAssign = userRole === 'admin' && complaint.status === 'pending';
+  
+  const canRate = userRole === 'user' && complaint.status === 'completed' && 
+                  complaint.userId === currentUser.uid && !complaint.rating;
+
+  const renderTechnicianSelection = () => (
+    <Modal visible={showTechModal} transparent animationType="fade" onRequestClose={() => setShowTechModal(false)}>
+      <TouchableOpacity activeOpacity={1} style={styles.modalOverlay} onPress={() => setShowTechModal(false)}>
+        <View style={styles.modalPanel}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalHeaderText}>Select Technician</Text>
+          </View>
+          <ScrollView style={styles.techListContainer}>
+            {technicians.length > 0 ? technicians.map(tech => (
+              <TouchableOpacity 
+                key={tech.id} 
+                style={[styles.techItem, selectedTechId === tech.id && styles.techItemActive]}
+                onPress={() => setSelectedTechId(tech.id)}
+              >
+                <View style={styles.techInfo}>
+                  <Text style={styles.techName}>{tech.name}</Text>
+                  <Text style={styles.techDept}>{tech.department || 'General'}</Text>
+                </View>
+                {selectedTechId === tech.id && (
+                  <CheckCircleIcon size={20} color={colors.primary} />
+                )}
+              </TouchableOpacity>
+            )) : (
+              <Text style={styles.noTechText}>No technicians available</Text>
+            )}
+          </ScrollView>
+          <View style={styles.modalActions}>
+            <CustomButton 
+              title="Cancel" 
+              onPress={() => setShowTechModal(false)} 
+              variant="outline"
+              size="small"
+              style={styles.modalButton}
+            />
+            <CustomButton 
+              title="Assign" 
+              onPress={handleAssignTechnician} 
+              disabled={!selectedTechId || submitting}
+              loading={submitting}
+              size="small"
+              style={styles.modalButton}
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
+  const renderRatingModal = () => (
+    <Modal visible={showRatingModal} transparent animationType="fade" onRequestClose={() => setShowRatingModal(false)}>
+      <TouchableOpacity activeOpacity={1} style={styles.modalOverlay} onPress={() => setShowRatingModal(false)}>
+        <View style={styles.modalPanel}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalHeaderText}>Rate This Service</Text>
+          </View>
+          <View style={styles.ratingContainer}>
+            <Text style={styles.ratingLabel}>How would you rate the service?</Text>
+            <View style={styles.starsContainer}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <TouchableOpacity 
+                  key={star}
+                  onPress={() => setRating(star)}
+                >
+                  <StarIcon 
+                    size={36} 
+                    color={star <= rating ? colors.warning : colors.border} 
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.feedbackLabel}>Additional Feedback (Optional)</Text>
+            <TextInput
+              style={styles.feedbackInput}
+              value={feedback}
+              onChangeText={setFeedback}
+              placeholder="Tell us about your experience..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+          <View style={styles.modalActions}>
+            <CustomButton 
+              title="Cancel" 
+              onPress={() => setShowRatingModal(false)} 
+              variant="outline"
+              size="small"
+              style={styles.modalButton}
+            />
+            <CustomButton 
+              title="Submit Rating" 
+              onPress={handleRateComplaint} 
+              disabled={rating === 0 || submitting}
+              loading={submitting}
+              size="small"
+              style={styles.modalButton}
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   return (
     <View style={styles.container}>
@@ -109,9 +450,15 @@ const ComplaintDetailScreen = ({ route, navigation }) => {
       >
         <View style={styles.section}>
           <View style={styles.titleRow}>
-            <Text style={styles.sectionTitle}>{complaint.title}</Text>
+            <Text style={styles.sectionTitle}>
+              {complaint?.title || ''}
+            </Text>
             <View style={[styles.statusChip, { backgroundColor: statusColor }]}>
-              <Text style={styles.statusChipText}>{complaint.status === 'completed' ? 'Completed' : 'In Progress'}</Text>
+              <Text style={styles.statusChipText}>
+                {complaint?.status === 'completed' ? 'Completed' : 
+                 complaint?.status === 'in-progress' ? 'In Progress' : 
+                 'Pending'}
+              </Text>
             </View>
           </View>
           {complaint.type && (
@@ -197,22 +544,88 @@ const ComplaintDetailScreen = ({ route, navigation }) => {
           )}
         </View>
 
-        {!readOnly && (
-          <CustomButton
-            title="Mark as Completed"
-            onPress={handleSubmit}
-            icon={CheckCircleIcon}
-            variant="success"
-            size="large"
-            disabled={!proofImage}
-          />
+        {canComplete && (
+          <View style={styles.completionFormContainer}>
+            <Text style={styles.completionFormTitle}>Mark as Completed</Text>
+            <TextInput
+              style={styles.completionNotes}
+              value={completionNotes}
+              onChangeText={setCompletionNotes}
+              placeholder="Enter completion notes..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={3}
+            />
+            <CustomButton
+              title="Mark as Completed"
+              onPress={handleCompleteWork}
+              icon={CheckCircleIcon}
+              variant="success"
+              size="large"
+              disabled={!proofImage || !completionNotes || submitting}
+              loading={submitting}
+            />
+          </View>
+        )}
+        
+        {canAssign && (
+          <View style={styles.actionButtonContainer}>
+            <CustomButton
+              title="Assign to Technician"
+              onPress={() => setShowTechModal(true)}
+              variant="primary"
+              size="large"
+              disabled={submitting}
+            />
+          </View>
+        )}
+        
+        {canRate && (
+          <View style={styles.actionButtonContainer}>
+            <CustomButton
+              title="Rate this Service"
+              onPress={() => setShowRatingModal(true)}
+              icon={StarIcon}
+              variant="outline"
+              size="large"
+              disabled={submitting}
+            />
+          </View>
         )}
       </ScrollView>
+      
+      {renderTechnicianSelection()}
+      {renderRatingModal()}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: colors.textSecondary,
+    marginTop: 16,
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 18,
+    marginBottom: 20,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -388,6 +801,130 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     fontStyle: 'italic'
+  },
+  completionFormContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  completionFormTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  completionNotes: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    color: colors.text,
+    fontSize: 16,
+    minHeight: 100,
+    marginBottom: 16,
+    textAlignVertical: 'top',
+  },
+  actionButtonContainer: {
+    marginTop: 16,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalPanel: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    width: '100%',
+    maxHeight: '80%',
+    padding: 16,
+  },
+  modalHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 12,
+    marginBottom: 16,
+  },
+  modalHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  techListContainer: {
+    maxHeight: 300,
+  },
+  techItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  techItemActive: {
+    backgroundColor: `${colors.primary}10`,
+  },
+  techInfo: {
+    flex: 1,
+  },
+  techName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  techDept: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  noTechText: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  // Rating modal styles
+  ratingContainer: {
+    padding: 16,
+  },
+  ratingLabel: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 12,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  feedbackLabel: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 8,
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    color: colors.text,
+    fontSize: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
 });
 

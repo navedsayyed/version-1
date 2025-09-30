@@ -9,5 +9,11 @@ export const colors = {
   textSecondary: '#B3B3B3',
   error: '#CF6679',
   success: '#4CAF50',
-  border: '#333333'
+  warning: '#FFA726', // Orange color for pending status
+  pending: '#FFA726', // Same as warning, for pending status
+  border: '#333333',
+  accentLight: 'rgba(0, 191, 255, 0.15)', // Light version of accent color
+  backgroundSecondary: '#1A1A1A', // Slightly lighter than background
+  inputBackground: '#2D2D2D', // For input fields
+  textPrimary: '#FFFFFF' // Primary text color
 };

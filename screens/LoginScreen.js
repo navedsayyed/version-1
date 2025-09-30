@@ -1,38 +1,63 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { colors } from '../styles/colors';
 import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
 import { SettingsIcon, UserIcon, UsersIcon } from '../components/icons';
+import { loginUser } from '../firebase/firebase';
 
 export const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = () => {
-    if (email && password) {
-      setShowRoleSelection(true);
-    } else {
-      Alert.alert('Error', 'Please enter email and password');
-    }
-  };
-
-  const selectRole = (role) => {
-    setShowRoleSelection(false);
+  const handleLogin = async () => {
+    // Reset error
+    setError('');
     
-    switch (role) {
-      case 'user':
-        navigation.navigate('UserDashboard');
-        break;
-      case 'technician':
-        navigation.navigate('TechnicianDashboard');
-        break;
-      case 'admin':
-        navigation.navigate('AdminDashboard');
-        break;
-      default:
-        break;
+    // Form validation
+    if (!email || !password) {
+      setError('Email and password are required');
+      return;
+    }
+    
+    // Start login process
+    setIsLoading(true);
+    
+    try {
+      const { user, error } = await loginUser(email, password);
+      
+      setIsLoading(false);
+      
+      if (error) {
+        setError(error.message || 'Failed to login. Please check your credentials.');
+        return;
+      } 
+      
+      if (!user) {
+        setError('No user found with these credentials');
+        return;
+      }
+      
+      // Login successful - navigate based on user role
+      switch (user.role) {
+        case 'user':
+          navigation.navigate('UserDashboard');
+          break;
+        case 'technician':
+          navigation.navigate('TechnicianDashboard');
+          break;
+        case 'admin':
+          navigation.navigate('AdminDashboard');
+          break;
+        default:
+          setError('Invalid user role. Please contact support.');
+          break;
+      }
+    } catch (err) {
+      setIsLoading(false);
+      setError('An unexpected error occurred. Please try again.');
     }
   };
 
@@ -59,6 +84,7 @@ export const LoginScreen = ({ navigation }) => {
               placeholderTextColor={colors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
 
@@ -71,58 +97,34 @@ export const LoginScreen = ({ navigation }) => {
               placeholder="Enter your password"
               placeholderTextColor={colors.textSecondary}
               secureTextEntry
+              editable={!isLoading}
             />
           </View>
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <CustomButton
             title="Sign In"
             onPress={handleLogin}
             size="large"
             icon={UserIcon}
+            disabled={isLoading}
           />
+          
+          {isLoading && (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          )}
+          
+          <View style={styles.signupContainer}>
+            <Text style={styles.signupText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.signupLinkText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
         </Card>
       </View>
-
-      <Modal visible={showRoleSelection} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Your Role</Text>
-            <Text style={styles.modalSubtitle}>Choose how you want to access the app</Text>
-
-            <View style={styles.roleContainer}>
-              <TouchableOpacity 
-                style={styles.roleCard} 
-                onPress={() => selectRole('user')}
-                activeOpacity={0.8}
-              >
-                <UserIcon size={40} color={colors.primary} />
-                <Text style={styles.roleTitle}>User</Text>
-                <Text style={styles.roleDescription}>Submit and track complaints</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.roleCard} 
-                onPress={() => selectRole('technician')}
-                activeOpacity={0.8}
-              >
-                <SettingsIcon size={40} color={colors.secondary} />
-                <Text style={styles.roleTitle}>Technician</Text>
-                <Text style={styles.roleDescription}>Solve assigned complaints</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.roleCard} 
-                onPress={() => selectRole('admin')}
-                activeOpacity={0.8}
-              >
-                <UsersIcon size={40} color={colors.accent} />
-                <Text style={styles.roleTitle}>Admin</Text>
-                <Text style={styles.roleDescription}>Manage all complaints</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -181,54 +183,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+  errorText: {
+    color: colors.error,
+    marginVertical: 10,
+    textAlign: 'center',
+  },
+  loaderContainer: {
+    marginTop: 20,
+    alignItems: 'center'
+  },
+  signupContainer: {
+    flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    marginTop: 24,
   },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 32,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 16,
+  signupText: {
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  roleContainer: {
-    gap: 16,
-  },
-  roleCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  roleTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  roleDescription: {
     fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  },
+  signupLinkText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

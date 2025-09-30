@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, Alert, Modal, Image, TouchableOpacity, FlatList, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, Alert, Modal, Image, TouchableOpacity, FlatList, Platform, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/colors';
 import { CustomButton } from '../components/CustomButton';
 import { Card } from '../components/Card';
-import { mockComplaints } from '../utils/mockData';
 import QRScannerScreen from '../components/QRScannerScreen';
 import { 
   BellIcon, 
@@ -17,6 +16,22 @@ import {
   MapPinIcon,
   CalendarIcon
 } from '../components/icons';
+import { 
+  ad  return (
+    <TouchableOpacity onPress={handlePress} style={[styles.tabBtn, isActive && styles.tabBtnActive]} activeOpacity={0.75}>
+      <View>
+        <Icon size={20} color={isActive ? colors.primary : colors.textSecondary} />
+      </View>
+      <Text style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}>{safeLabel}</Text>
+    </TouchableOpacity>
+  );aint, 
+  getComplaints, 
+  auth, 
+  db,
+  uploadComplaintImage,
+  uploadMultipleComplaintImages
+} from '../firebase/index';
+import { doc, updateDoc } from 'firebase/firestore';
 
 // CLEAN REWRITE OF USER DASHBOARD (fixing prior corruption & nesting issues)
 // Key changes:
@@ -29,12 +44,14 @@ import {
 export const UserDashboard = ({ navigation }) => {
   /* -------------------------------- State -------------------------------- */
   const [activeTab, setActiveTab] = useState('add'); // 'add' | 'list'
-  const [complaints, setComplaints] = useState(mockComplaints);
+  const [complaints, setComplaints] = useState([]);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showPhotoOptions, setShowPhotoOptions] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [complaintsTab, setComplaintsTab] = useState('in-progress'); // inner tab
+  const [complaintsTab, setComplaintsTab] = useState('pending'); // inner tab
+  const [isLoading, setIsLoading] = useState(false);
+  const [images, setImages] = useState([]);
 
   const [complaintForm, setComplaintForm] = useState({
     title: '',
@@ -75,6 +92,52 @@ export const UserDashboard = ({ navigation }) => {
     { label: 'Other', value: 'other', category: 'Other' }
   ];
 
+  /* -------------------------- Fetch complaints on mount and tab change ------------------------ */
+  useEffect(() => {
+    fetchUserComplaints();
+  }, [complaintsTab]);
+
+  const fetchUserComplaints = async () => {
+    try {
+      setIsLoading(true);
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to view complaints');
+        navigation.navigate('Login');
+        return;
+      }
+      
+      // Get complaints for the current user
+      const status = complaintsTab === 'completed' ? 'completed' : complaintsTab === 'in-progress' ? 'in-progress' : 'pending';
+      try {
+        const result = await getComplaints({ 
+          userId: currentUser.uid,
+          status: status
+        });
+        
+        if (result?.error) {
+          console.error('Error getting complaints:', result.error);
+          Alert.alert('Error', 'Failed to load complaints. Please try again later.');
+          setComplaints([]);
+        } else if (result?.complaints) {
+          setComplaints(Array.isArray(result.complaints) ? result.complaints : []);
+        } else {
+          setComplaints([]);
+        }
+      } catch (fetchError) {
+        console.error('Error in getComplaints:', fetchError);
+        setComplaints([]);
+      }
+    } catch (error) {
+      console.error('Error fetching complaints:', error);
+      Alert.alert('Error', 'Failed to load complaints');
+      setComplaints([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   /* -------------------------- Permissions on mount ----------------------- */
   useEffect(() => {
     (async () => {
@@ -89,18 +152,48 @@ export const UserDashboard = ({ navigation }) => {
   }, []);
 
   /* ------------------------------- Handlers ------------------------------ */
-  const handleSetField = (field, value) => setComplaintForm(p => ({ ...p, [field]: value }));
+  const handleSetField = (field, value) => {
+    if (field) {
+      setComplaintForm(p => ({ ...p, [field]: value === undefined ? '' : value }));
+    }
+  };
 
-  const handleQRScan = () => setShowQRScanner(true);
+  const handleQRScan = () => {
+    // Check camera permissions before showing scanner
+    (async () => {
+      try {
+        const cameraStatus = await ImagePicker.getCameraPermissionsAsync();
+        if (!cameraStatus.granted) {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Camera Permission', 'Camera access is required to scan QR codes');
+            return;
+          }
+        }
+        setShowQRScanner(true);
+      } catch (error) {
+        console.error('Permission check error:', error);
+        Alert.alert('Error', 'Failed to check camera permissions');
+      }
+    })();
+  };
 
   const handleScanComplete = (qrData) => {
+    // Guard against null or undefined QR data
+    if (!qrData) {
+      Alert.alert('Error', 'Invalid QR code data');
+      setShowQRScanner(false);
+      return;
+    }
+    
     const upd = {
-      class: qrData.class || '',
-      floor: qrData.floor || '',
-      department: qrData.department || '',
-      location: `Building ${qrData.building || 'A'} - Floor ${qrData.floor || '1'}`,
-      place: `${qrData.department || 'General'} - Room ${qrData.class || '101'}`
+      class: (qrData?.class || '').toString(),
+      floor: (qrData?.floor || '').toString(),
+      department: (qrData?.department || '').toString(),
+      location: `Building ${(qrData?.building || 'A').toString()} - Floor ${(qrData?.floor || '1').toString()}`,
+      place: `${(qrData?.department || 'General').toString()} - Room ${(qrData?.class || '101').toString()}`
     };
+    
     setComplaintForm(p => ({ ...p, ...upd }));
     Alert.alert('QR Scanned', `${upd.location}\n${upd.place}`);
     setShowQRScanner(false);
@@ -108,43 +201,166 @@ export const UserDashboard = ({ navigation }) => {
 
   const takePhoto = async () => {
     try {
-      const res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-      if (!res.canceled) handleSetField('image', res.assets[0].uri);
+      const res = await ImagePicker.launchCameraAsync({ 
+        quality: 0.7,
+        allowsMultipleSelection: true
+      });
+      
+      if (res && !res.canceled && res.assets && Array.isArray(res.assets)) {
+        // Filter out any invalid assets
+        const validAssets = res.assets.filter(asset => asset && typeof asset.uri === 'string');
+        if (validAssets.length > 0) {
+          const selectedImages = validAssets.map(asset => asset.uri);
+          
+          // Safely handle existing images array
+          const currentImages = Array.isArray(images) ? images : [];
+          setImages(currentImages => [...currentImages, ...selectedImages]);
+          
+          if (selectedImages.length > 0) {
+            handleSetField('image', selectedImages[0]); // Set the first image as the main one
+          }
+        }
+      }
+      
       setShowPhotoOptions(false);
-    } catch (e) { Alert.alert('Error', 'Camera failed'); }
+    } catch (e) { 
+      console.error('Camera error:', e);
+      Alert.alert('Error', 'Camera failed'); 
+      setShowPhotoOptions(false);
+    }
   };
 
   const pickImage = async () => {
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.8 });
-      if (!res.canceled) handleSetField('image', res.assets[0].uri);
+      const res = await ImagePicker.launchImageLibraryAsync({ 
+        quality: 0.7,
+        allowsMultipleSelection: true,
+        selectionLimit: 5
+      });
+      
+      if (res && !res.canceled && res.assets && Array.isArray(res.assets)) {
+        // Filter out any invalid assets
+        const validAssets = res.assets.filter(asset => asset && typeof asset.uri === 'string');
+        if (validAssets.length > 0) {
+          const selectedImages = validAssets.map(asset => asset.uri);
+          
+          // Safely handle existing images array
+          const currentImages = Array.isArray(images) ? images : [];
+          
+          // Check if adding these would exceed the limit
+          if (currentImages.length + selectedImages.length > 5) {
+            Alert.alert('Limit Reached', 'Maximum 5 images allowed');
+            const remainingSlots = Math.max(0, 5 - currentImages.length);
+            if (remainingSlots > 0) {
+              setImages([...currentImages, ...selectedImages.slice(0, remainingSlots)]);
+              if (currentImages.length === 0 && selectedImages.length > 0) {
+                handleSetField('image', selectedImages[0]); // Set the first image as the main one
+              }
+            }
+          } else {
+            setImages([...currentImages, ...selectedImages]);
+            if (currentImages.length === 0 && selectedImages.length > 0) {
+              handleSetField('image', selectedImages[0]); // Set the first image as the main one
+            }
+          }
+        }
+      }
+      
       setShowPhotoOptions(false);
-    } catch (e) { Alert.alert('Error', 'Image pick failed'); }
+    } catch (e) { 
+      console.error('Image picker error:', e);
+      Alert.alert('Error', 'Image pick failed'); 
+      setShowPhotoOptions(false);
+    }
   };
 
-  const submitComplaint = () => {
-    const { title, type, description, location, place } = complaintForm;
-    if (!title || !type || !description || !location || !place) {
-      Alert.alert('Missing Fields', 'Fill Title, Type, Location, Place, Description');
-      return;
+  const submitComplaint = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Safely extract values with fallbacks to empty string
+      const title = complaintForm?.title || '';
+      const type = complaintForm?.type || '';
+      const description = complaintForm?.description || '';
+      const location = complaintForm?.location || '';
+      const place = complaintForm?.place || '';
+      
+      if (!title || !type || !description || !location || !place) {
+        Alert.alert('Missing Fields', 'Fill Title, Type, Location, Place, Description');
+        setIsLoading(false);
+        return;
+      }
+      
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to submit a complaint');
+        navigation.navigate('Login');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Create the complaint data
+      const complaintData = {
+        title,
+        type,
+        description,
+        location,
+        place,
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        department: complaintForm.department || null,
+        class: complaintForm.class || null,
+        floor: complaintForm.floor || null,
+      };
+      
+      // Add complaint to Firestore
+      const { complaintId, error } = await addComplaint(complaintData);
+      
+      if (error) {
+        Alert.alert('Error', 'Failed to submit complaint');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Upload images if any
+      if (Array.isArray(images) && images.length > 0) {
+        try {
+          const { downloadURLs, error: uploadError } = await uploadMultipleComplaintImages(complaintId, images);
+          
+          if (uploadError) {
+            console.error('Error uploading images:', uploadError);
+            // We don't want to fail the complaint submission if image upload fails
+            // Just show a warning
+            Alert.alert('Warning', 'Complaint saved but images failed to upload');
+          } else if (Array.isArray(downloadURLs) && downloadURLs.length > 0) {
+            // Update complaint with image URLs
+            await updateDoc(doc(db, 'complaints', complaintId), {
+              images: downloadURLs
+            });
+          }
+        } catch (uploadErr) {
+          console.error('Error in image upload process:', uploadErr);
+          Alert.alert('Warning', 'Complaint saved but there was an issue with image uploads');
+        }
+      }
+      
+      setIsLoading(false);
+      setShowSuccess(true);
+      setComplaintForm({ title: '', location: '', place: '', description: '', image: null, class: '', floor: '', department: '', type: '' });
+      setImages([]);
+      
+      setTimeout(() => {
+        setShowSuccess(false);
+        // Switch to the list tab to see the new complaint
+        setActiveTab('list');
+        setComplaintsTab('pending');
+        fetchUserComplaints();
+      }, 1500);
+    } catch (error) {
+      console.error('Error submitting complaint:', error);
+      Alert.alert('Error', 'Failed to submit complaint');
+      setIsLoading(false);
     }
-    const newComplaint = {
-      id: complaints.length + 1,
-      title,
-      type,
-      description,
-      location,
-      place,
-      date: new Date().toISOString().split('T')[0],
-      status: 'in-progress',
-      userId: 'current.user@company.com',
-      technicianId: null,
-      image: complaintForm.image,
-    };
-    setComplaints(c => [...c, newComplaint]);
-    setShowSuccess(true);
-    setComplaintForm({ title: '', location: '', place: '', description: '', image: null, class: '', floor: '', department: '', type: '' });
-    setTimeout(() => setShowSuccess(false), 1500);
   };
 
   /* ---------------------------- Render Sections -------------------------- */
@@ -165,7 +381,7 @@ export const UserDashboard = ({ navigation }) => {
       <Card>
         <Text style={styles.sectionTitle}>Complaint Details</Text>
         <Field label="Title *">
-          <TextInput style={styles.input} value={complaintForm.title} onChangeText={v => handleSetField('title', v)} placeholder="Short title" placeholderTextColor={colors.textSecondary} />
+          <TextInput style={styles.input} value={complaintForm.title || ''} onChangeText={v => handleSetField('title', v)} placeholder="Short title" placeholderTextColor={colors.textSecondary} />
         </Field>
 
         <Field label="Complaint Type *">
@@ -173,63 +389,169 @@ export const UserDashboard = ({ navigation }) => {
             <Text style={[styles.dropdownText, !complaintForm.type && styles.placeholder]}>
               {complaintForm.type ? complaintTypes.find(t => t.value === complaintForm.type)?.label : 'Select type'}
             </Text>
-            <Feather name="chevron-down" size={18} color={complaintForm.type ? colors.primary : colors.textSecondary} />
+            <View><Feather name="chevron-down" size={18} color={complaintForm.type ? colors.primary : colors.textSecondary} /></View>
           </TouchableOpacity>
         </Field>
 
         <Field label="Location *">
-          <TextInput style={styles.input} value={complaintForm.location} onChangeText={v => handleSetField('location', v)} placeholder="Building & Floor" placeholderTextColor={colors.textSecondary} />
+          <TextInput style={styles.input} value={complaintForm.location || ''} onChangeText={v => handleSetField('location', v)} placeholder="Building & Floor" placeholderTextColor={colors.textSecondary} />
         </Field>
         <Field label="Place *">
-          <TextInput style={styles.input} value={complaintForm.place} onChangeText={v => handleSetField('place', v)} placeholder="Dept / Room" placeholderTextColor={colors.textSecondary} />
+          <TextInput style={styles.input} value={complaintForm.place || ''} onChangeText={v => handleSetField('place', v)} placeholder="Dept / Room" placeholderTextColor={colors.textSecondary} />
         </Field>
         <Field label="Description *">
-          <TextInput style={[styles.input, styles.textArea]} value={complaintForm.description} onChangeText={v => handleSetField('description', v)} multiline numberOfLines={5} placeholder="Describe the issue" placeholderTextColor={colors.textSecondary} />
+          <TextInput 
+            style={[styles.input, styles.textArea]} 
+            value={complaintForm.description} 
+            onChangeText={v => handleSetField('description', v)} 
+            multiline={true}
+            textAlignVertical="top"
+            placeholder="Describe the issue" 
+            placeholderTextColor={colors.textSecondary} 
+          />
         </Field>
 
-        <Field label="Photo (optional)">
-          {complaintForm.image ? (
-            <View>
-              <Image source={{ uri: complaintForm.image }} style={styles.preview} />
-              <CustomButton title="Change Photo" variant="outline" size="small" onPress={() => setShowPhotoOptions(true)} />
-            </View>
-          ) : (
-            <CustomButton title="Add Photo" icon={UploadIcon} variant="outline" onPress={() => setShowPhotoOptions(true)} />
-          )}
+        <Field label="Photos (optional)">
+          <View style={styles.imageGallery}>
+            {images.length > 0 ? (
+              <>
+                <ScrollView horizontal style={styles.imagePreviewScroll}>
+                  {images.map((uri, index) => (
+                    <View key={index} style={styles.imagePreviewContainer}>
+                      <Image source={{ uri }} style={styles.preview} />
+                      <TouchableOpacity 
+                        style={styles.removeImageButton}
+                        onPress={() => {
+                          const newImages = [...images];
+                          newImages.splice(index, 1);
+                          setImages(newImages);
+                          if (index === 0 && newImages.length > 0) {
+                            handleSetField('image', newImages[0]);
+                          } else if (newImages.length === 0) {
+                            handleSetField('image', null);
+                          }
+                        }}
+                      >
+                        <Text style={styles.removeImageText}>×</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+                <View style={styles.imageCountBadge}>
+                  <Text style={styles.imageCountText}>{images.length} photo{images.length !== 1 ? 's' : ''}</Text>
+                </View>
+                <CustomButton title="Add More Photos" variant="outline" size="small" onPress={() => setShowPhotoOptions(true)} />
+              </>
+            ) : (
+              <CustomButton title="Add Photos" icon={UploadIcon} variant="outline" onPress={() => setShowPhotoOptions(true)} />
+            )}
+          </View>
         </Field>
 
-        <CustomButton title="Submit Complaint" icon={CheckCircleIcon} size="large" onPress={submitComplaint} />
+        <CustomButton 
+          title="Submit Complaint" 
+          icon={CheckCircleIcon} 
+          size="large" 
+          onPress={submitComplaint} 
+          disabled={isLoading}
+          loading={isLoading}
+        />
       </Card>
       <View style={{ height: 120 }} />
     </ScrollView>
   );
 
-  const filteredComplaints = complaints.filter(c => complaintsTab === 'in-progress' ? c.status === 'in-progress' : c.status === 'completed');
+  const filteredComplaints = complaints;
+  
   const MyComplaintsTab = () => (
     <View style={{ flex: 1 }}>
       <View style={styles.innerTabs}>
-        {['in-progress','completed'].map(k => (
-          <TouchableOpacity key={k} style={[styles.innerTabBtn, complaintsTab === k && styles.innerTabBtnActive]} onPress={() => setComplaintsTab(k)}>
-            <Text style={[styles.innerTabText, complaintsTab === k && styles.innerTabTextActive]}>{k === 'in-progress' ? 'In Progress' : 'Completed'}</Text>
+        {['pending', 'in-progress', 'completed'].map(k => (
+          <TouchableOpacity 
+            key={k} 
+            style={[styles.innerTabBtn, complaintsTab === k && styles.innerTabBtnActive]} 
+            onPress={() => {
+              if (k !== complaintsTab) {
+                setComplaintsTab(k);
+                setIsLoading(true);
+                // Prevent rapid tab changes
+                setTimeout(() => {
+                  fetchUserComplaints();
+                }, 100);
+              }
+            }}
+          >
+            <Text style={[styles.innerTabText, complaintsTab === k && styles.innerTabTextActive]}>
+              {k === 'in-progress' ? 'In Progress' : k === 'completed' ? 'Completed' : 'Pending'}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.listContent}>
-        {filteredComplaints.length ? filteredComplaints.map(c => (
-          <Card key={c.id} style={styles.cCard}>
-            <View style={styles.cHeader}>
-              <Text style={styles.cTitle}>{c.title}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: c.status === 'completed' ? colors.success : colors.accent }]}>
-                <Text style={styles.statusBadgeText}>{c.status === 'completed' ? 'Completed' : 'In Progress'}</Text>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading complaints...</Text>
+          </View>
+        ) : filteredComplaints.length ? filteredComplaints.map(c => (
+          <TouchableOpacity 
+            key={c.id} 
+            onPress={() => navigation.navigate('ComplaintDetail', { complaintId: c.id })}
+          >
+            <Card style={styles.cCard}>
+              <View style={styles.cHeader}>
+                <Text style={styles.cTitle}>{c.title}</Text>
+                <View style={[styles.statusBadge, { 
+                  backgroundColor: 
+                    c.status === 'completed' ? colors.success : 
+                    c.status === 'in-progress' ? colors.accent : 
+                    colors.pending 
+                }]}>
+                  <Text style={styles.statusBadgeText}>
+                    {c.status === 'completed' ? 'Completed' : 
+                     c.status === 'in-progress' ? 'In Progress' : 'Pending'}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.metaRow}><MapPinIcon size={14} color={colors.textSecondary} /><Text style={styles.metaText}>{c.location} - {c.place}</Text></View>
-            <View style={styles.metaRow}><CalendarIcon size={14} color={colors.textSecondary} /><Text style={styles.metaText}>{c.date}</Text></View>
-            <Text numberOfLines={3} style={styles.cDesc}>{c.description}</Text>
-            {c.image ? <Image source={{ uri: c.image }} style={styles.cImage} /> : null}
-          </Card>
+              <View style={styles.metaRow}>
+                <MapPinIcon size={14} color={colors.textSecondary} />
+                <Text style={styles.metaText}>
+                  {c.location ? c.location : 'Unknown'}{c.place ? ` - ${c.place}` : ''}
+                </Text>
+              </View>
+              <View style={styles.metaRow}>
+                <CalendarIcon size={14} color={colors.textSecondary} />
+                <Text style={styles.metaText}>
+                  {c.date ? new Date(c.date).toLocaleDateString() : 'No date'}
+                </Text>
+              </View>
+              <Text numberOfLines={3} style={styles.cDesc}>{c.description}</Text>
+              {c.images && c.images.length > 0 ? (
+                <View style={styles.complaintImagesContainer}>
+                  {c.images.slice(0, 3).map((uri, index) => (
+                    <Image key={index} source={{ uri }} style={styles.complaintImageThumb} />
+                  ))}
+                  {c.images.length > 3 && (
+                    <View style={styles.moreImagesOverlay}>
+                      <Text style={styles.moreImagesText}>+{c.images.length - 3}</Text>
+                    </View>
+                  )}
+                </View>
+              ) : null}
+            </Card>
+          </TouchableOpacity>
         )) : (
-          <View style={styles.empty}><Text style={styles.emptyText}>No complaints here.</Text></View>
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No complaints found.</Text>
+            {complaintsTab !== 'pending' && (
+              <CustomButton 
+                title="Create New Complaint" 
+                variant="outline" 
+                size="small" 
+                onPress={() => setActiveTab('add')} 
+              />
+            )}
+          </View>
         )}
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -243,17 +565,32 @@ export const UserDashboard = ({ navigation }) => {
         <View style={styles.ddPanel}>
           <View style={styles.ddHeader}><Text style={styles.ddHeaderText}>Select Complaint Type</Text></View>
           <FlatList
-            data={complaintTypes}
-            keyExtractor={i => i.value}
+            data={Array.isArray(complaintTypes) ? complaintTypes : []}
+            keyExtractor={(item) => item?.value || String(Math.random())}
             renderItem={({ item, index }) => {
+              if (!item) return null;
+              
               const prev = index > 0 ? complaintTypes[index - 1] : null;
-              const showCat = !prev || prev.category !== item.category;
+              const showCat = !prev || prev?.category !== item?.category;
+              const currentCategory = item?.category || 'Other';
+              const currentLabel = item?.label || '';
+              const currentType = complaintForm?.type || '';
+              const currentValue = item?.value || '';
+              
               return (
                 <>
-                  {showCat && <Text style={styles.ddCategory}>{item.category}</Text>}
-                  <TouchableOpacity style={[styles.ddItem, complaintForm.type === item.value && styles.ddItemActive]} onPress={() => { handleSetField('type', item.value); setShowTypeDropdown(false); }}>
-                    <Text style={[styles.ddItemText, complaintForm.type === item.value && styles.ddItemTextActive]}>{item.label}</Text>
-                    {complaintForm.type === item.value && <Feather name="check" size={16} color={colors.primary} />}
+                  {showCat && <Text style={styles.ddCategory}>{currentCategory}</Text>}
+                  <TouchableOpacity 
+                    style={[styles.ddItem, currentType === currentValue && styles.ddItemActive]} 
+                    onPress={() => { 
+                      handleSetField('type', currentValue); 
+                      setShowTypeDropdown(false); 
+                    }}
+                  >
+                    <Text style={[styles.ddItemText, currentType === currentValue && styles.ddItemTextActive]}>
+                      {currentLabel}
+                    </Text>
+                    {currentType === currentValue && <View><Feather name="check" size={16} color={colors.primary} /></View>}
                   </TouchableOpacity>
                 </>
               );
@@ -276,8 +613,38 @@ export const UserDashboard = ({ navigation }) => {
         <BellIcon size={22} color={colors.text} />
       </View>
       <View style={styles.tabBar}>
-        <TabButton active={activeTab==='add'} onPress={() => setActiveTab('add')} label="New Complaint" icon={FileTextIcon} />
-        <TabButton active={activeTab==='list'} onPress={() => setActiveTab('list')} label="My Complaints" icon={ClockIcon} />
+        <TabButton 
+          active={activeTab==='add'} 
+          onPress={() => {
+            setActiveTab('add');
+            // Make sure the form is reset if we have any stale data
+            if (!complaintForm) {
+              setComplaintForm({
+                title: '',
+                location: '',
+                place: '',
+                description: '',
+                image: null,
+                class: '',
+                floor: '',
+                department: '',
+                type: ''
+              });
+            }
+          }} 
+          label="New Complaint" 
+          icon={FileTextIcon} 
+        />
+        <TabButton 
+          active={activeTab==='list'} 
+          onPress={() => {
+            setActiveTab('list');
+            // Refresh complaints when switching to list tab
+            fetchUserComplaints();
+          }} 
+          label="My Complaints" 
+          icon={ClockIcon} 
+        />
       </View>
       {activeTab === 'add' ? <AddComplaintTab /> : <MyComplaintsTab />}
 
@@ -315,21 +682,47 @@ export const UserDashboard = ({ navigation }) => {
 };
 
 /* ----------------------------- Reusable Components ----------------------------- */
-const Field = ({ label, children }) => (
-  <View style={styles.field}> 
-    <Text style={styles.fieldLabel}>{label}</Text>
-    {children}
-  </View>
-);
+const Field = ({ label, children }) => {
+  // Defensive null check for the label
+  const safeLabel = label || '';
+  
+  return (
+    <View style={styles.field}> 
+      <Text style={styles.fieldLabel}>{safeLabel}</Text>
+      {children}
+    </View>
+  );
+};
 
-const TabButton = ({ active, onPress, label, icon: Icon }) => (
-  <TouchableOpacity onPress={onPress} style={[styles.tabBtn, active && styles.tabBtnActive]} activeOpacity={0.75}>
-    <Icon size={18} color={active ? colors.primary : colors.textSecondary} />
-    <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>{label}</Text>
-  </TouchableOpacity>
-);
+const TabButton = ({ active, onPress, label, icon: Icon }) => {
+  // Defensive null checks
+  const safeLabel = label || '';
+  const isActive = Boolean(active);
+  const handlePress = typeof onPress === 'function' ? onPress : () => {};
+  
+  // If no icon is provided, render just the text
+  if (!Icon) {
+    return (
+      <TouchableOpacity onPress={handlePress} style={[styles.tabBtn, isActive && styles.tabBtnActive]} activeOpacity={0.75}>
+        <Text style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}>{safeLabel}</Text>
+      </TouchableOpacity>
+    );
+  }
+  
+  return (
+    <TouchableOpacity onPress={handlePress} style={[styles.tabBtn, isActive && styles.tabBtnActive]} activeOpacity={0.75}>
+      <View>
+        <Icon size={18} color={isActive ? colors.primary : colors.textSecondary} />
+      </View>
+      <Text style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}>{safeLabel}</Text>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
+  pending: {
+    backgroundColor: colors.warning, // Add this color to your colors object
+  },
   container: { flex: 1, backgroundColor: colors.background },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 56, paddingHorizontal: 20, paddingBottom: 12, backgroundColor: colors.surface },
   topTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
@@ -344,7 +737,13 @@ const styles = StyleSheet.create({
   field: { marginBottom: 16 },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 6 },
   input: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, fontSize: 15, color: colors.text },
-  textArea: { height: 120, textAlignVertical: 'top' },
+  textArea: { 
+    height: 120, 
+    textAlignVertical: 'top', 
+    paddingTop: 14,
+    paddingBottom: 14,
+    minHeight: 120
+  },
   dropdownSelector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14 },
   dropdownSelectorActive: { borderColor: colors.primary },
   dropdownText: { fontSize: 15, color: colors.text },

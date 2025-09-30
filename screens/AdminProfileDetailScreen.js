@@ -60,7 +60,7 @@ const AdminProfileDetailScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Admin Profile</Text>
         <TouchableOpacity onPress={handleEditPress} style={styles.editButton}>
-          <MaterialIcons name={isEditing ? 'close' : 'edit'} size={22} color={colors.primary} />
+          <View><MaterialIcons name={isEditing ? 'close' : 'edit'} size={22} color={colors.primary} /></View>
           <Text style={styles.editButtonText}>{isEditing ? 'Cancel' : 'Edit'}</Text>
         </TouchableOpacity>
       </View>
@@ -69,7 +69,7 @@ const AdminProfileDetailScreen = ({ navigation }) => {
         <Image source={{ uri: profile.avatar }} style={styles.avatar} />
         {isEditing && (
           <TouchableOpacity style={styles.changePhotoButton} onPress={pickImage}>
-            <MaterialIcons name="photo-camera" size={18} color="white" />
+            <View><MaterialIcons name="photo-camera" size={18} color="white" /></View>
             <Text style={styles.changePhotoText}>Change Photo</Text>
           </TouchableOpacity>
         )}
@@ -92,7 +92,7 @@ const AdminProfileDetailScreen = ({ navigation }) => {
       )}
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <MaterialIcons name="logout" size={22} color="white" />
+        <View><MaterialIcons name="logout" size={22} color="white" /></View>
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
 

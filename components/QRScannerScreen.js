@@ -87,7 +87,7 @@ const QRScannerScreen = ({ onScan, onClose }) => {
           style={[styles.bottomButton, styles.flashlightButton, torchOn ? styles.flashlightActive : null]} 
           onPress={toggleTorch}
         >
-          <MaterialIcons name={torchOn ? "flash-on" : "flash-off"} size={24} color="white" />
+          <View><MaterialIcons name={torchOn ? "flash-on" : "flash-off"} size={24} color="white" /></View>
           <Text style={styles.bottomButtonText}>{torchOn ? "Flash Off" : "Flash On"}</Text>
         </TouchableOpacity>
       </View>

@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, StyleSheet, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, StatusBar, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { colors } from './styles/colors';
 import { LoginScreen } from './screens/LoginScreen';
+import SignupScreen from './screens/SignupScreen';
 import { UserDashboard } from './screens/UserDashboard';
 import TechnicianDashboard from './screens/TechnicianDashboard';
 import { AdminDashboard } from './screens/AdminDashboard';
@@ -54,7 +55,7 @@ const UserTabNavigator = () => {
           tabBarIcon: ({ color, size }) => (
             <FileTextIcon size={size} color={color} />
           ),
-          tabBarLabel: 'Dashboard'
+          tabBarLabel: ({ color }) => <Text style={{ color, fontSize: 12 }}>Dashboard</Text>
         }}
       />
       <Tab.Screen 
@@ -179,6 +180,7 @@ export default function App() {
           }}
         >
           <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Signup" component={SignupScreen} />
           <Stack.Screen name="UserDashboard" component={UserTabNavigator} />
           <Stack.Screen name="TechnicianDashboard" component={TechnicianTabNavigator} />
           <Stack.Screen name="AdminDashboard" component={AdminTabNavigator} />
